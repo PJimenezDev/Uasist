@@ -13,7 +13,7 @@ import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun UAsistMainScreen(onBack: () -> Unit) { // <--- Aquí definimos el nombre que falta
+fun UAsistMainScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
