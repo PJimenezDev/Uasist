@@ -66,7 +66,6 @@ fun AppNavigation() {
         }
 
         composable(Rutas.ScannerQR.ruta) {
-            // Aquí llamas a la pantalla de Scanner que te programé en el mensaje anterior
             UAsistMainScreen(onBack = { navController.popBackStack() })
         }
     }
