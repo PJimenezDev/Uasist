@@ -11,6 +11,14 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
+
+import androidx.compose.ui.graphics.Color
+
+val PrimaryColor = Color(0xFF030213)      // --primary
+val BackgroundColor = Color(0xFFFFFFFF)   // --background
+val MutedColor = Color(0xFFECECF0)        // --muted
+val MutedForeground = Color(0xFF717182)   // --muted-foreground
+val Destructive = Color(0xFFD4183D)        // --destructive
 private val DarkColorScheme = darkColorScheme(
     primary = Purple80,
     secondary = PurpleGrey80,
