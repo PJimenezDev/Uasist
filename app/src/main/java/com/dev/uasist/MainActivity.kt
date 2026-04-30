@@ -150,17 +150,16 @@ fun AppNavigation(
         modifier = modifier
     ) {
         // --- PANTALLA DE LOGIN ---
-        composable(Rutas.Login.ruta) {
-            LoginScreen(
-                onLoginAlumno = {
-                    onRoleChange("alumno")
-                    navController.navigate(Rutas.AlumnoDashboard.ruta)
-                },
-                onLoginProfesor = {
-                    onRoleChange("profesor")
-                    navController.navigate(Rutas.ProfesorDashboard.ruta)
+        composable("login") {
+            LoginScreen(onLoginSuccess = { esProfe: Boolean ->
+                val rutaDestino = if(esProfe) "profesor_dashboard" else "alumno_dashboard"
+                onRoleChange(if(esProfe) "profesor" else "alumno")
+
+                navController.navigate(rutaDestino) {
+                    // Esto elimina la pantalla de Login del historial
+                    popUpTo("login") { inclusive = true }
                 }
-            )
+            })
         }
 
         // --- PANTALLAS DEL ALUMNO ---

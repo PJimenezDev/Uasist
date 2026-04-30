@@ -20,8 +20,7 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun LoginScreen(
-    onLoginAlumno: () -> Unit,
-    onLoginProfesor: () -> Unit
+    onLoginSuccess: (esProfe: Boolean) -> Unit
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -103,8 +102,8 @@ fun LoginScreen(
                     onClick = {
                         // Lógica de simulación de login basada en tu archivo React
                         when {
-                            email == "alumno@mail.com" -> onLoginAlumno()
-                            email == "profesor@mail.com" -> onLoginProfesor()
+                            email == "alumno@mail.com" -> onLoginSuccess(false)
+                            email == "profesor@mail.com" -> onLoginSuccess(true)
                             else -> error = "Credenciales incorrectas"
                         }
                     },

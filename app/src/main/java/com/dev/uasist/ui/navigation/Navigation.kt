@@ -36,8 +36,12 @@ fun AppNavigation() {
 
         composable(Rutas.Login.ruta) {
             LoginScreen(
-                onLoginAlumno = { navController.navigate(Rutas.AlumnoDashboard.ruta) },
-                onLoginProfesor = { navController.navigate(Rutas.ProfesorDashboard.ruta) }
+                onLoginSuccess = { esProfe ->
+                    val rutaDestino = if(esProfe) Rutas.ProfesorDashboard.ruta else Rutas.AlumnoDashboard.ruta
+                    navController.navigate(rutaDestino) {
+                        popUpTo(Rutas.Login.ruta) { inclusive = true }
+                    }
+                }
             )
         }
 
@@ -65,10 +69,5 @@ fun AppNavigation() {
             // Aquí llamas a la pantalla de Scanner que te programé en el mensaje anterior
             UAsistMainScreen(onBack = { navController.popBackStack() })
         }
-
-//        // --- RUTAS DEL PROFESOR ---
-//        composable(Rutas.ProfesorDashboard.ruta) {
-//            ProfesorDashboardScreen()
-//        }
     }
 }
