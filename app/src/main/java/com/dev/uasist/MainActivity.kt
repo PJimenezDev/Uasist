@@ -33,7 +33,7 @@ import com.dev.uasist.ui.theme.UasistTheme
 import com.dev.uasist.ui.screens.LoginScreen
 import com.dev.uasist.ui.screens.DashboardScreen
 import com.dev.uasist.ui.screens.ProfileScreen
-import com.dev.uasist.ui.screens.UAsistMainScreen
+import com.dev.uasist.ui.screens.QRScannerScreen
 
 import com.dev.uasist.ui.screens.ClasesScreen
 import com.dev.uasist.ui.screens.GenerarQRScreen
@@ -150,14 +150,14 @@ fun AppNavigation(
         modifier = modifier
     ) {
         // --- PANTALLA DE LOGIN ---
-        composable("login") {
-            LoginScreen(onLoginSuccess = { esProfe: Boolean ->
-                val rutaDestino = if(esProfe) "profesor_dashboard" else "alumno_dashboard"
-                onRoleChange(if(esProfe) "profesor" else "alumno")
+        composable(Rutas.Login.ruta) {
+            LoginScreen(onLoginSuccess = { esProfe ->
+                val rutaDestino = if (esProfe) Rutas.ProfesorDashboard.ruta else Rutas.AlumnoDashboard.ruta
+                onRoleChange(if (esProfe) "profesor" else "alumno")
 
                 navController.navigate(rutaDestino) {
                     // Esto elimina la pantalla de Login del historial
-                    popUpTo("login") { inclusive = true }
+                    popUpTo(Rutas.Login.ruta) { inclusive = true }
                 }
             })
         }
@@ -179,7 +179,9 @@ fun AppNavigation(
         }
 
         composable(Rutas.ScannerQR.ruta) {
-            UAsistMainScreen(onBack = { navController.popBackStack() })
+            QRScannerScreen(onAsistenciaRegistrada = { _ ->
+                navController.popBackStack()
+            })
         }
 
         composable(Rutas.Clases.ruta) {

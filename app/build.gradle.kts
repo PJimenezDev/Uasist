@@ -49,6 +49,14 @@ dependencies {
 
     implementation("com.google.zxing:core:3.5.3")
 
+    // CameraX
+    val camerax_version = "1.3.1"
+    implementation("androidx.camera:camera-camera2:$camerax_version")
+    implementation("androidx.camera:camera-lifecycle:$camerax_version")
+    implementation("androidx.camera:camera-view:$camerax_version")
+
+    // ML Kit QR Code Scanning
+    implementation("com.google.mlkit:barcode-scanning:17.2.0")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
