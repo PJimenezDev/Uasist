@@ -2,6 +2,8 @@ package com.dev.uasist.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState // Importante
+import androidx.compose.foundation.verticalScroll // Importante
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -19,8 +21,8 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun ProfileScreen(onLogout: () -> Unit) {
     var isEditing by remember { mutableStateOf(false) }
+    val scrollState = rememberScrollState() // Estado del scroll
 
-    // Estados para los campos (Simulando el formData de React)
     var nombre by remember { mutableStateOf("Carlos") }
     var apellidos by remember { mutableStateOf("Ramírez López") }
     var email by remember { mutableStateOf("carlos.ramirez@mail.com") }
@@ -29,6 +31,7 @@ fun ProfileScreen(onLogout: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF9FAFB))
+            .verticalScroll(scrollState) // AGREGADO: Esto permite bajar hasta el botón
             .padding(16.dp)
     ) {
         Text("Mi Perfil", fontSize = 24.sp, fontWeight = FontWeight.Bold)
@@ -36,7 +39,7 @@ fun ProfileScreen(onLogout: () -> Unit) {
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Tarjeta de Usuario con Gradiente (purple to pink)
+        // Tarjeta de Usuario
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
@@ -71,7 +74,9 @@ fun ProfileScreen(onLogout: () -> Unit) {
         ProfileField(label = "Apellidos", value = apellidos, isEditing = isEditing, onValueChange = { apellidos = it }, icon = Icons.Default.Badge)
         ProfileField(label = "Email", value = email, isEditing = isEditing, onValueChange = { email = it }, icon = Icons.Default.Email)
 
-        Spacer(modifier = Modifier.weight(1f))
+        // Usamos un Spacer con peso para empujar los botones abajo,
+        // pero en un scroll se recomienda un height fijo para evitar conflictos
+        Spacer(modifier = Modifier.height(32.dp))
 
         // Botones de Acción
         if (!isEditing) {
@@ -108,21 +113,24 @@ fun ProfileScreen(onLogout: () -> Unit) {
 
         Spacer(modifier = Modifier.height(12.dp))
 
+        // BOTÓN CERRAR SESIÓN
         Button(
             onClick = onLogout,
             modifier = Modifier.fillMaxWidth().height(50.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Icon(Icons.Default.Logout, contentDescription = null, modifier = Modifier.size(18.dp))
+            // NOTA: Asegúrate de usar Icons.Default.LogOut (con O mayúscula)
+            // ya que Logout a veces no resuelve según la versión de iconos.
+            Icon(Icons.Default.ExitToApp, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Cerrar Sesión")
+            Text("Cerrar Sesión", color = Color.White)
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        // Padding extra al final para que el menú inferior no lo tape
+        Spacer(modifier = Modifier.height(80.dp))
     }
 }
-
 @Composable
 fun ProfileField(label: String, value: String, isEditing: Boolean, onValueChange: (String) -> Unit, icon: androidx.compose.ui.graphics.vector.ImageVector) {
     Column(modifier = Modifier.padding(bottom = 16.dp)) {

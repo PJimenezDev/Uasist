@@ -48,6 +48,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
 
     implementation("com.google.zxing:core:3.5.3")
+    implementation(libs.androidx.compose.foundation)
 
     // CameraX
     val camerax_version = "1.3.1"
