@@ -25,7 +25,10 @@ fun ClasesScreen() {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(bottom = 80.dp)) {
             items(clases) { clase ->
                 val porcentaje = (clase.asistencias.toFloat() / clase.totalClases.toFloat() * 100).toInt()
 

@@ -8,7 +8,7 @@ import com.dev.uasist.ui.screens.ClasesScreen
 import com.dev.uasist.ui.screens.DashboardScreen
 import com.dev.uasist.ui.screens.LoginScreen
 import com.dev.uasist.ui.screens.ProfileScreen
-import com.dev.uasist.ui.screens.UAsistMainScreen
+import com.dev.uasist.ui.screens.QRScannerScreen
 
 
 sealed class Rutas(val ruta: String) {
@@ -66,7 +66,14 @@ fun AppNavigation() {
         }
 
         composable(Rutas.ScannerQR.ruta) {
-            UAsistMainScreen(onBack = { navController.popBackStack() })
+            QRScannerScreen(onAsistenciaRegistrada = { resultado ->
+                // Al dejar esto vacío (o solo con un log),
+                // la pantalla no se cerrará al escanear.
+                println("QR Escaneado con éxito: $resultado")
+
+                // Si quieres que después de unos segundos se limpie para otro escaneo,
+                // la lógica debe estar dentro de QRScannerScreen, no aquí.
+            })
         }
     }
 }

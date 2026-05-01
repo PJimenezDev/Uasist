@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
@@ -24,10 +25,11 @@ fun DashboardScreen(
     onNavigateToScanner: () -> Unit,
     onNavigateToClases: () -> Unit,
     // Inyectamos el repositorio temporalmente para obtener datos (simulando los estados de React)
-    repository: AsistenciaRepository = remember { AsistenciaRepository() }
+    repository: AsistenciaRepository = remember { AsistenciaRepository() },
 ) {
     val clasesHoy = repository.getClasesHoy()
     val asistenciaGeneral = repository.getAsistenciaGeneral()
+    val scrollState = rememberScrollState()
 
     Column(
         modifier = Modifier
@@ -114,6 +116,8 @@ fun DashboardScreen(
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(80.dp))
         }
 
         Spacer(modifier = Modifier.weight(1f))
