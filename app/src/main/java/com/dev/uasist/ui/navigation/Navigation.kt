@@ -66,8 +66,13 @@ fun AppNavigation() {
         }
 
         composable(Rutas.ScannerQR.ruta) {
-            QRScannerScreen (onAsistenciaRegistrada = { _ ->
-                navController.popBackStack()
+            QRScannerScreen(onAsistenciaRegistrada = { resultado ->
+                // Al dejar esto vacío (o solo con un log),
+                // la pantalla no se cerrará al escanear.
+                println("QR Escaneado con éxito: $resultado")
+
+                // Si quieres que después de unos segundos se limpie para otro escaneo,
+                // la lógica debe estar dentro de QRScannerScreen, no aquí.
             })
         }
     }
