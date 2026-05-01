@@ -79,6 +79,7 @@ fun GenerarQRScreen() {
                 fontSize = 18.sp
             )
 
+            // Botón para desactivar el QR
             Button(
                 onClick = {
                     qrGenerado = false
