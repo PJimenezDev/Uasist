@@ -5,12 +5,34 @@ import java.util.Calendar
 
 class AsistenciaRepository {
 
-    private val estudiantes = listOf(
-        Estudiante("est1", "Carlos", "Ramírez López", "carlos@mail.com"),
-        Estudiante("est2", "María", "González Silva", "maria@mail.com"),
-        Estudiante("est3", "Pedro", "Martínez Rojas", "pedro.martinez@mail.com"),
-        Estudiante("est4", "Ana", "Fernández Torres", "ana.fernandez@mail.com")
-    )
+    fun login(email: String): Usuario? {
+        return when (email) {
+            "carlos@mail.com" -> Usuario.Estudiante(
+                id = "EST-123",
+                nombre = "Carlos",
+                apellidos = "Ramírez",
+                email = "carlos@mail.com"
+            )
+            "elisa@mail.com" -> Usuario.Profesor(
+                id = "PROF-999",
+                nombre = "Elisa",
+                apellidos = "Gaete",
+                email = "elisa@mail.com",
+                materiaImpartida = Materia.MATEMATICAS, // Materia asignada
+                salaAsignada = "Laboratorio 2"
+            )
+            else -> null
+        }
+    }
+    private val usuarios = listOf(
+        Usuario.Estudiante("EST-123", "Carlos", "Ramírez", "c.ramirez@gmail.com"),
+        Usuario.Profesor("PROF-999", "Elisa", "Gaete", "e.gaete@gmail.com", Materia.MATEMATICAS, "Laboratorio 2"),
+        Usuario.Estudiante("EST-456", "Ana", "López", "a.lopez@gmail.com"),
+        Usuario.Profesor("PROF-888", "Miguel", "Sánchez", "m.sanchez@gmail.com", Materia.FISICA, "Laboratorio 1"),
+        Usuario.Estudiante("EST-789", "Sofía", "García", "s.garcia@gmail.com"),
+        Usuario.Profesor("PROF-777", "David", "Martínez", "d.martinez@gmail.com", Materia.QUIMICA, "Laboratorio 3"),
+        Usuario.Estudiante("EST-101", "Laura", "Fernández", "l.fernandez@gmail.com")
+        )
 
     private val clases = listOf(
         Clase("1", "Matemáticas", "Prof. González", "08:00 - 10:00", listOf("Lunes", "Miércoles", "Viernes"), 28, 30),
@@ -28,6 +50,7 @@ class AsistenciaRepository {
     }
 
     private fun generarAsistenciasIniciales() {
+        val estudiantes = usuarios.filterIsInstance<Usuario.Estudiante>()
         estudiantes.forEach { estudiante ->
             clases.forEach { clase ->
                 asistenciasCache.add(

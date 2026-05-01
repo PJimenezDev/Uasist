@@ -2,8 +2,8 @@ package com.dev.uasist.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState // Importante
-import androidx.compose.foundation.verticalScroll // Importante
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -17,29 +17,37 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
+import com.dev.uasist.model.Usuario
 @Composable
-fun ProfileScreen(onLogout: () -> Unit) {
+fun ProfileScreen(usuario: Usuario, onLogout: () -> Unit) {
     var isEditing by remember { mutableStateOf(false) }
-    val scrollState = rememberScrollState() // Estado del scroll
+    val scrollState = rememberScrollState()
 
-    var nombre by remember { mutableStateOf("Carlos") }
-    var apellidos by remember { mutableStateOf("Ramírez López") }
-    var email by remember { mutableStateOf("carlos.ramirez@mail.com") }
+    // Estados inicializados con los datos reales del usuario pasado por parámetro
+    var nombre by remember { mutableStateOf(usuario.nombre) }
+    var apellidos by remember { mutableStateOf(usuario.apellidos) }
+    var email by remember { mutableStateOf(usuario.email) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF9FAFB))
-            .verticalScroll(scrollState) // AGREGADO: Esto permite bajar hasta el botón
+            .verticalScroll(scrollState)
             .padding(16.dp)
     ) {
         Text("Mi Perfil", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-        Text("Gestiona tu información personal", color = Color.Gray, fontSize = 14.sp)
+        // Subtítulo dinámico según el rol
+        val subtitulo = if (usuario is Usuario.Profesor) "Panel de Docente" else "Información de Estudiante"
+        Text(subtitulo, color = Color.Gray, fontSize = 14.sp)
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Tarjeta de Usuario
+        // Tarjeta de Usuario con color según el Rol
+        val gradienteColor = if (usuario is Usuario.Profesor)
+            listOf(Color(0xFF2563EB), Color(0xFF3B82F6)) // Azul para profes
+        else
+            listOf(Color(0xFFA855F7), Color(0xFFEC4899)) // Morado/Rosa para alumnos
+
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
@@ -47,7 +55,7 @@ fun ProfileScreen(onLogout: () -> Unit) {
         ) {
             Box(
                 modifier = Modifier
-                    .background(Brush.horizontalGradient(listOf(Color(0xFFA855F7), Color(0xFFEC4899))))
+                    .background(Brush.horizontalGradient(gradienteColor))
                     .padding(24.dp)
                     .fillMaxWidth(),
                 contentAlignment = Alignment.Center
@@ -58,7 +66,8 @@ fun ProfileScreen(onLogout: () -> Unit) {
                         shape = CircleShape,
                         color = Color.White.copy(alpha = 0.2f)
                     ) {
-                        Icon(Icons.Default.Person, contentDescription = null, tint = Color.White, modifier = Modifier.padding(16.dp))
+                        val iconoPrincipal = if (usuario is Usuario.Profesor) Icons.Default.School else Icons.Default.Person
+                        Icon(iconoPrincipal, contentDescription = null, tint = Color.White, modifier = Modifier.padding(16.dp))
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Text("$nombre $apellidos", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
@@ -69,16 +78,32 @@ fun ProfileScreen(onLogout: () -> Unit) {
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Campos de información
+        // Campos básicos comunes
         ProfileField(label = "Nombre", value = nombre, isEditing = isEditing, onValueChange = { nombre = it }, icon = Icons.Default.Person)
         ProfileField(label = "Apellidos", value = apellidos, isEditing = isEditing, onValueChange = { apellidos = it }, icon = Icons.Default.Badge)
         ProfileField(label = "Email", value = email, isEditing = isEditing, onValueChange = { email = it }, icon = Icons.Default.Email)
 
-        // Usamos un Spacer con peso para empujar los botones abajo,
-        // pero en un scroll se recomienda un height fijo para evitar conflictos
+        // CAMPOS DINÁMICOS (Solo si es Profesor)
+        if (usuario is Usuario.Profesor) {
+            ProfileField(
+                label = "Materia Impartida",
+                value = usuario.materiaImpartida.nombre,
+                isEditing = false, // La materia suele ser asignada administrativamente
+                onValueChange = {},
+                icon = Icons.Default.Book
+            )
+            ProfileField(
+                label = "Sala Asignada",
+                value = usuario.salaAsignada,
+                isEditing = isEditing,
+                onValueChange = {},
+                icon = Icons.Default.MeetingRoom
+            )
+        }
+
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Botones de Acción
+        // Lógica de botones (Editar / Guardar)
         if (!isEditing) {
             Button(
                 onClick = { isEditing = true },
@@ -99,7 +124,7 @@ fun ProfileScreen(onLogout: () -> Unit) {
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF22C55E)),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Guardar")
+                    Text("Guardar Cambios")
                 }
                 OutlinedButton(
                     onClick = { isEditing = false },
@@ -113,21 +138,17 @@ fun ProfileScreen(onLogout: () -> Unit) {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // BOTÓN CERRAR SESIÓN
         Button(
             onClick = onLogout,
             modifier = Modifier.fillMaxWidth().height(50.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
             shape = RoundedCornerShape(12.dp)
         ) {
-            // NOTA: Asegúrate de usar Icons.Default.LogOut (con O mayúscula)
-            // ya que Logout a veces no resuelve según la versión de iconos.
             Icon(Icons.Default.ExitToApp, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(8.dp))
             Text("Cerrar Sesión", color = Color.White)
         }
 
-        // Padding extra al final para que el menú inferior no lo tape
         Spacer(modifier = Modifier.height(80.dp))
     }
 }

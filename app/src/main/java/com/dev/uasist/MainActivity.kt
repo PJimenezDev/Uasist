@@ -39,6 +39,7 @@ import com.dev.uasist.ui.screens.ClasesScreen
 import com.dev.uasist.ui.screens.GenerarQRScreen
 import com.dev.uasist.ui.screens.ProfesorDashboardScreen
 import com.dev.uasist.ui.screens.AsistenciaAlumnosScreen
+import com.dev.uasist.model.Usuario
 
 // 1. Definimos las rutas de la aplicación
 sealed class Rutas(val ruta: String) {
@@ -144,6 +145,7 @@ fun AppNavigation(
     onRoleChange: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var usuarioActual by remember { mutableStateOf<Usuario?>(null) }
     NavHost(
         navController = navController,
         startDestination = Rutas.Login.ruta,
@@ -151,9 +153,18 @@ fun AppNavigation(
     ) {
         // --- PANTALLA DE LOGIN ---
         composable(Rutas.Login.ruta) {
-            LoginScreen(onLoginSuccess = { esProfe ->
-                val rutaDestino = if (esProfe) Rutas.ProfesorDashboard.ruta else Rutas.AlumnoDashboard.ruta
-                onRoleChange(if (esProfe) "profesor" else "alumno")
+            LoginScreen(onLoginSuccess = { usuario ->
+                usuarioActual = usuario
+                val rutaDestino = when (usuario) {
+                    is Usuario.Profesor -> {
+                        onRoleChange("profesor")
+                        Rutas.ProfesorDashboard.ruta
+                    }
+                    is Usuario.Estudiante -> {
+                        onRoleChange("alumno")
+                        Rutas.AlumnoDashboard.ruta
+                    }
+                }
 
                 navController.navigate(rutaDestino) {
                     // Esto elimina la pantalla de Login del historial
@@ -171,11 +182,17 @@ fun AppNavigation(
         }
 
         composable(Rutas.Profile.ruta) {
-            ProfileScreen(onLogout = {
-                navController.navigate(Rutas.Login.ruta) {
-                    popUpTo(0) // Borra el historial para no volver atrás con el botón de retroceso
-                }
-            })
+            usuarioActual?.let { user ->
+                ProfileScreen(
+                    usuario = user,
+                    onLogout = {
+                        usuarioActual = null
+                        navController.navigate(Rutas.Login.ruta) {
+                            popUpTo(0)
+                        }
+                    }
+                )
+            }
         }
 
         composable(Rutas.ScannerQR.ruta) {

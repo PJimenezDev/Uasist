@@ -18,10 +18,14 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import com.dev.uasist.data.AsistenciaRepository
+import com.dev.uasist.model.Usuario
+
 @Composable
 fun LoginScreen(
-    onLoginSuccess: (esProfe: Boolean) -> Unit
+    onLoginSuccess: (usuario: Usuario) -> Unit
 ) {
+    val repository = remember { AsistenciaRepository() }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var error by remember { mutableStateOf("") }
@@ -100,11 +104,11 @@ fun LoginScreen(
                 // Botón Iniciar Sesión
                 Button(
                     onClick = {
-                        // Lógica de simulación de login basada en tu archivo React
-                        when {
-                            email == "alumno@mail.com" -> onLoginSuccess(false)
-                            email == "profesor@mail.com" -> onLoginSuccess(true)
-                            else -> error = "Credenciales incorrectas"
+                        val usuarioLogueado = repository.login(email)
+                        if (usuarioLogueado != null) {
+                            onLoginSuccess(usuarioLogueado)
+                        } else {
+                            error = "Credenciales incorrectas"
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(56.dp),

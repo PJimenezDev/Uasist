@@ -1,14 +1,11 @@
 package com.dev.uasist.ui.navigation
 
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.dev.uasist.ui.screens.ClasesScreen
-import com.dev.uasist.ui.screens.DashboardScreen
-import com.dev.uasist.ui.screens.LoginScreen
-import com.dev.uasist.ui.screens.ProfileScreen
-import com.dev.uasist.ui.screens.QRScannerScreen
+import com.dev.uasist.ui.screens.*
+import com.dev.uasist.model.Usuario
 
 
 sealed class Rutas(val ruta: String) {
@@ -31,13 +28,18 @@ sealed class Rutas(val ruta: String) {
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
+    var usuarioActual by remember { mutableStateOf<Usuario?>(null) }
 
     NavHost(navController = navController, startDestination = Rutas.Login.ruta) {
 
         composable(Rutas.Login.ruta) {
             LoginScreen(
-                onLoginSuccess = { esProfe ->
-                    val rutaDestino = if(esProfe) Rutas.ProfesorDashboard.ruta else Rutas.AlumnoDashboard.ruta
+                onLoginSuccess = { usuario ->
+                    usuarioActual = usuario
+                    val rutaDestino = when (usuario) {
+                        is Usuario.Profesor -> Rutas.ProfesorDashboard.ruta
+                        is Usuario.Estudiante -> Rutas.AlumnoDashboard.ruta
+                    }
                     navController.navigate(rutaDestino) {
                         popUpTo(Rutas.Login.ruta) { inclusive = true }
                     }
@@ -57,12 +59,18 @@ fun AppNavigation() {
             ClasesScreen()
         }
 
-        composable(Rutas.Profile.ruta) { // Añade esta ruta a tu sealed class Rutas
-            ProfileScreen(onLogout = {
-                navController.navigate(Rutas.Login.ruta) {
-                    popUpTo(0) // Limpiar historial para que no pueda volver atrás
-                }
-            })
+        composable(Rutas.Profile.ruta) {
+            usuarioActual?.let { user ->
+                ProfileScreen(
+                    usuario = user,
+                    onLogout = {
+                        usuarioActual = null
+                        navController.navigate(Rutas.Login.ruta) {
+                            popUpTo(0)
+                        }
+                    }
+                )
+            }
         }
 
         composable(Rutas.ScannerQR.ruta) {
@@ -74,6 +82,22 @@ fun AppNavigation() {
                 // Si quieres que después de unos segundos se limpie para otro escaneo,
                 // la lógica debe estar dentro de QRScannerScreen, no aquí.
             })
+        }
+
+        // --- RUTAS DEL PROFESOR ---
+        composable(Rutas.ProfesorDashboard.ruta) {
+            ProfesorDashboardScreen(
+                onNavigateToQR = { navController.navigate(Rutas.GenerarQR.ruta) },
+                onNavigateToLista = { navController.navigate(Rutas.AsistenciaLista.ruta) }
+            )
+        }
+
+        composable(Rutas.GenerarQR.ruta) {
+            GenerarQRScreen()
+        }
+
+        composable(Rutas.AsistenciaLista.ruta) {
+            AsistenciaAlumnosScreen()
         }
     }
 }
