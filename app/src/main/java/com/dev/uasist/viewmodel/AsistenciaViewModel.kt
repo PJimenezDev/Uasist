@@ -34,4 +34,7 @@ class AsistenciaViewModel : ViewModel() {
     fun reiniciarEscaner() {
         _uiState.value = AsistenciaUiState.Escaneando
     }
+
+    // Aquí podrías agregar más funciones relacionadas con la asistencia,
+    // como validar el código QR, manejar errores específicos, etc.
 }
