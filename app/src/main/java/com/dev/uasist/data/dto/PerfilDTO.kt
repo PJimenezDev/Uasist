@@ -5,11 +5,12 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class PerfilDto(
-    val id: String = "",
-    val nombre: String = "",
-    val apellidos: String = "",
-    val email: String = "",
-    val rol: String = "",
+    @SerialName("id") val id: String,
+    @SerialName("nombre") val nombre: String,
+    @SerialName("apellidos") val apellidos: String,
+    @SerialName("email") val email: String,
+    @SerialName("rol") val rol: String,
+    // Importante: Estos deben ser nulables para que el insert de un alumno no falle
     @SerialName("materia_impartida") val materiaImpartida: String? = null,
     @SerialName("sala_asignada") val salaAsignada: String? = null
 )

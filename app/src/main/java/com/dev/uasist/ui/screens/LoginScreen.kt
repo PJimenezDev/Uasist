@@ -24,7 +24,8 @@ import com.dev.uasist.model.Usuario
 
 @Composable
 fun LoginScreen(
-    onLoginSuccess: (usuario: Usuario) -> Unit
+    onLoginSuccess: (usuario: Usuario) -> Unit,
+    onNavigateToSignUp: () -> Unit
 ) {
     val repository = remember { AsistenciaRepository() }
     val scope = rememberCoroutineScope()
@@ -113,7 +114,7 @@ fun LoginScreen(
                                 if (usuarioLogueado != null) {
                                     onLoginSuccess(usuarioLogueado)
                                 } else {
-                                    error = "Usuario no encontrado en la base de datos"
+                                    error = "Usuario no encontrado"
                                 }
                             } catch (e: Exception) {
                                 // Esto hará que el error aparezca en tu pantalla en texto rojo
@@ -127,6 +128,16 @@ fun LoginScreen(
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text("Iniciar Sesión", fontSize = 16.sp)
+                }
+
+                TextButton(
+                    onClick = { onNavigateToSignUp() },
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                ) {
+                    Text(
+                        text = "¿No tienes cuenta? Regístrate aquí",
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
         }

@@ -10,6 +10,7 @@ import com.dev.uasist.model.Usuario
 
 sealed class Rutas(val ruta: String) {
     object Login : Rutas("login")
+    object SignUp : Rutas("signup")
     object Profile : Rutas("profile")
 
     // Alumno
@@ -38,22 +39,27 @@ fun AppNavigation(
     ) {
         // --- PANTALLA DE LOGIN ---
         composable(Rutas.Login.ruta) {
-            LoginScreen(onLoginSuccess = { usuario ->
-                onUsuarioChange(usuario)
-                val rutaDestino = when (usuario) {
-                    is Usuario.Profesor -> {
-                        onRoleChange("profesor")
-                        Rutas.ProfesorDashboard.ruta
+            LoginScreen(
+                onLoginSuccess = { usuario ->
+                    onUsuarioChange(usuario)
+                    val rutaDestino = when (usuario) {
+                        is Usuario.Profesor -> {
+                            onRoleChange("profesor")
+                            Rutas.ProfesorDashboard.ruta
+                        }
+                        is Usuario.Estudiante -> {
+                            onRoleChange("alumno")
+                            Rutas.AlumnoDashboard.ruta
+                        }
                     }
-                    is Usuario.Estudiante -> {
-                        onRoleChange("alumno")
-                        Rutas.AlumnoDashboard.ruta
+                    navController.navigate(rutaDestino) {
+                        popUpTo(Rutas.Login.ruta) { inclusive = true }
                     }
+                },
+                onNavigateToSignUp = {
+                    navController.navigate(Rutas.SignUp.ruta)
                 }
-                navController.navigate(rutaDestino) {
-                    popUpTo(Rutas.Login.ruta) { inclusive = true }
-                }
-            })
+            )
         }
 
         // --- PANTALLAS DEL ALUMNO ---
@@ -148,6 +154,25 @@ fun AppNavigation(
                     popUpTo(0) { inclusive = true }
                 }
             }
+        }
+
+        composable(Rutas.SignUp.ruta) {
+            SignUpScreen(
+                onNavigateToLogin = {
+                    navController.popBackStack()
+                },
+                onSignUpSuccess = {
+                    // Después del registro, intentamos obtener el perfil para setear el usuarioActual
+                    // O simplemente redirigimos al login para que el usuario inicie sesión.
+                    // Para una mejor UX, intentaremos loguear automáticamente o pedir login.
+                    // Por ahora, redirigimos al Login con un mensaje de éxito sería ideal, 
+                    // pero aquí lo mandamos al dashboard si logramos reconstruir el objeto.
+                    // Como simplificación para este flujo, lo mandaremos al Login.
+                    navController.navigate(Rutas.Login.ruta) {
+                        popUpTo(Rutas.SignUp.ruta) { inclusive = true }
+                    }
+                }
+            )
         }
     }
 }

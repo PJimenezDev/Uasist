@@ -4,6 +4,8 @@ import android.util.Log
 import com.dev.uasist.data.dto.*
 import com.dev.uasist.data.network.SupabaseManager
 import com.dev.uasist.model.*
+import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.gotrue.providers.builtin.Email
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -15,7 +17,50 @@ class AsistenciaRepository {
 
     private val TAG = "AsistenciaRepository"
 
-    // --- AUTENTICACIÓN / PERFIL ---
+    suspend fun signUp(email: String, pass: String, nombre: String, apellidos: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            // 1. Crear usuario en Auth
+            // Usamos la sintaxis más reciente del SDK
+            val authResponse = SupabaseManager.client.auth.signUpWith(Email) {
+                this.email = email
+                this.password = pass
+            }
+
+            // 2. Intentar obtener el ID del usuario recién creado
+            // Si authResponse es null o no tiene ID, lo buscamos en el estado actual de la sesión
+            val userId = authResponse?.id
+
+            if (userId == null) {
+                Log.e(TAG, "Auth exitoso pero no se pudo obtener el ID del usuario")
+                return@withContext false
+            }
+
+            Log.d(TAG, "Usuario creado en Auth con ID: $userId. Procediendo a crear perfil...")
+
+            // 3. Insertar perfil en la tabla 'perfiles'
+            // IMPORTANTE: Asegúrate que PerfilDto acepte nulos en materia y sala
+            val nuevoPerfil = PerfilDto(
+                id = userId,
+                nombre = nombre,
+                apellidos = apellidos,
+                email = email,
+                rol = "estudiante",
+                materiaImpartida = null,
+                salaAsignada = null
+            )
+
+            SupabaseManager.client.from("perfiles").insert(nuevoPerfil)
+
+            Log.d(TAG, "Perfil insertado correctamente en la tabla")
+            true
+
+        } catch (e: Exception) {
+            // Log detallado para saber si el error es de Auth o de la Tabla
+            Log.e(TAG, "Error detallado en registro: ${e.localizedMessage}")
+            e.printStackTrace()
+            false
+        }
+    }
     suspend fun login(email: String): Usuario? = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "Intentando login para: $email")
