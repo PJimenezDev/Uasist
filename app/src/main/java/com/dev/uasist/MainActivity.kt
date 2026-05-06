@@ -23,39 +23,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.dev.uasist.ui.theme.UasistTheme
-
-// Importamos las pantallas que creamos anteriormente
-import com.dev.uasist.ui.screens.LoginScreen
-import com.dev.uasist.ui.screens.DashboardScreen
-import com.dev.uasist.ui.screens.ProfileScreen
-import com.dev.uasist.ui.screens.QRScannerScreen
-
-import com.dev.uasist.ui.screens.ClasesScreen
-import com.dev.uasist.ui.screens.GenerarQRScreen
-import com.dev.uasist.ui.screens.ProfesorDashboardScreen
-import com.dev.uasist.ui.screens.AsistenciaAlumnosScreen
 import com.dev.uasist.model.Usuario
+import com.dev.uasist.ui.navigation.AppNavigation
+import com.dev.uasist.ui.navigation.Rutas
 
-// 1. Definimos las rutas de la aplicación
-sealed class Rutas(val ruta: String) {
-    object Login : Rutas("login")
-    object AlumnoDashboard : Rutas("alumno_dashboard")
-    object Profile : Rutas("profile")
-    object ScannerQR : Rutas("scanner_qr")
-    object Clases : Rutas("clases")
-
-    // Rutas del Profesor
-    object ProfesorDashboard : Rutas("profesor_dashboard")
-    object GenerarQR : Rutas("generar_qr")
-    object AsistenciaLista : Rutas("asistencia_lista")
-}
-
-// Definición de los items del menú
+// Definición de los items del menú vinculados a las rutas oficiales del paquete navigation
 sealed class BottomNavItem(val route: String, val icon: ImageVector, val label: String) {
     // Alumno
     object Inicio : BottomNavItem(Rutas.AlumnoDashboard.ruta, Icons.Default.Home, "Inicio")
@@ -81,11 +56,12 @@ class MainActivity : ComponentActivity() {
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentDestination = navBackStackEntry?.destination
 
-                // Estado para el rol del usuario
+                // ESTADO CENTRALIZADO: Única fuente de verdad para el usuario y su rol
+                var usuarioActual by remember { mutableStateOf<Usuario?>(null) }
                 var userRole by remember { mutableStateOf("alumno") }
 
-                // Solo mostrar menú si no estamos en el Login
-                val showBottomBar = currentDestination?.route != Rutas.Login.ruta
+                // Solo mostrar menú si no estamos en el Login y tenemos un usuario
+                val showBottomBar = currentDestination?.route != Rutas.Login.ruta && usuarioActual != null
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
@@ -127,103 +103,16 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 ) { innerPadding ->
+                    // Delegamos la navegación al archivo Navigation.kt pasándole los estados necesarios
                     AppNavigation(
                         navController = navController,
+                        usuarioActual = usuarioActual,
+                        onUsuarioChange = { usuarioActual = it },
                         onRoleChange = { userRole = it },
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
             }
-        }
-    }
-}
-
-// 4. El Componente que maneja qué pantalla se muestra
-@Composable
-fun AppNavigation(
-    navController: androidx.navigation.NavHostController,
-    onRoleChange: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var usuarioActual by remember { mutableStateOf<Usuario?>(null) }
-    NavHost(
-        navController = navController,
-        startDestination = Rutas.Login.ruta,
-        modifier = modifier
-    ) {
-        // --- PANTALLA DE LOGIN ---
-        composable(Rutas.Login.ruta) {
-            LoginScreen(onLoginSuccess = { usuario ->
-                usuarioActual = usuario
-                val rutaDestino = when (usuario) {
-                    is Usuario.Profesor -> {
-                        onRoleChange("profesor")
-                        Rutas.ProfesorDashboard.ruta
-                    }
-                    is Usuario.Estudiante -> {
-                        onRoleChange("alumno")
-                        Rutas.AlumnoDashboard.ruta
-                    }
-                }
-
-                navController.navigate(rutaDestino) {
-                    // Esto elimina la pantalla de Login del historial
-                    popUpTo(Rutas.Login.ruta) { inclusive = true }
-                }
-            })
-        }
-
-        // --- PANTALLAS DEL ALUMNO ---
-        composable(Rutas.AlumnoDashboard.ruta) {
-            DashboardScreen(
-                onNavigateToScanner = { navController.navigate(Rutas.ScannerQR.ruta) },
-                onNavigateToClases = { navController.navigate(Rutas.Clases.ruta) }
-            )
-        }
-
-        composable(Rutas.Profile.ruta) {
-            usuarioActual?.let { user ->
-                ProfileScreen(
-                    usuario = user,
-                    onLogout = {
-                        usuarioActual = null
-                        navController.navigate(Rutas.Login.ruta) {
-                            popUpTo(0)
-                        }
-                    }
-                )
-            }
-        }
-
-        composable(Rutas.ScannerQR.ruta) {
-            QRScannerScreen(onAsistenciaRegistrada = { resultado ->
-                // Al dejar esto vacío (o solo con un log),
-                // la pantalla no se cerrará al escanear.
-                println("QR Escaneado con éxito: $resultado")
-
-                // Si quieres que después de unos segundos se limpie para otro escaneo,
-                // la lógica debe estar dentro de QRScannerScreen, no aquí.
-            })
-        }
-
-        composable(Rutas.Clases.ruta) {
-            ClasesScreen()
-        }
-
-        // --- PANTALLAS DEL PROFESOR ---
-        composable(Rutas.ProfesorDashboard.ruta) {
-            ProfesorDashboardScreen(
-                onNavigateToQR = { navController.navigate(Rutas.GenerarQR.ruta) },
-                onNavigateToLista = { navController.navigate(Rutas.AsistenciaLista.ruta) }
-            )
-        }
-
-        composable(Rutas.GenerarQR.ruta) {
-            GenerarQRScreen()
-        }
-
-        composable(Rutas.AsistenciaLista.ruta) {
-            AsistenciaAlumnosScreen()
         }
     }
 }

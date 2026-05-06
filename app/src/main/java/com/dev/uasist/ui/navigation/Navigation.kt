@@ -1,12 +1,12 @@
 package com.dev.uasist.ui.navigation
 
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
 import com.dev.uasist.ui.screens.*
 import com.dev.uasist.model.Usuario
-
 
 sealed class Rutas(val ruta: String) {
     object Login : Rutas("login")
@@ -23,40 +23,52 @@ sealed class Rutas(val ruta: String) {
     object AsistenciaLista : Rutas("asistencia_lista")
 }
 
-
-
 @Composable
-fun AppNavigation() {
-    val navController = rememberNavController()
-    var usuarioActual by remember { mutableStateOf<Usuario?>(null) }
-
-    NavHost(navController = navController, startDestination = Rutas.Login.ruta) {
-
+fun AppNavigation(
+    navController: NavHostController,
+    usuarioActual: Usuario?,
+    onUsuarioChange: (Usuario?) -> Unit,
+    onRoleChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    NavHost(
+        navController = navController,
+        startDestination = Rutas.Login.ruta,
+        modifier = modifier
+    ) {
+        // --- PANTALLA DE LOGIN ---
         composable(Rutas.Login.ruta) {
-            LoginScreen(
-                onLoginSuccess = { usuario ->
-                    usuarioActual = usuario
-                    val rutaDestino = when (usuario) {
-                        is Usuario.Profesor -> Rutas.ProfesorDashboard.ruta
-                        is Usuario.Estudiante -> Rutas.AlumnoDashboard.ruta
+            LoginScreen(onLoginSuccess = { usuario ->
+                onUsuarioChange(usuario)
+                val rutaDestino = when (usuario) {
+                    is Usuario.Profesor -> {
+                        onRoleChange("profesor")
+                        Rutas.ProfesorDashboard.ruta
                     }
-                    navController.navigate(rutaDestino) {
-                        popUpTo(Rutas.Login.ruta) { inclusive = true }
+                    is Usuario.Estudiante -> {
+                        onRoleChange("alumno")
+                        Rutas.AlumnoDashboard.ruta
                     }
                 }
-            )
+                navController.navigate(rutaDestino) {
+                    popUpTo(Rutas.Login.ruta) { inclusive = true }
+                }
+            })
         }
 
-        // --- RUTAS DEL ALUMNO ---
+        // --- PANTALLAS DEL ALUMNO ---
         composable(Rutas.AlumnoDashboard.ruta) {
-            DashboardScreen(
-                onNavigateToScanner = { navController.navigate(Rutas.ScannerQR.ruta) },
-                onNavigateToClases = { navController.navigate(Rutas.Clases.ruta) }
-            )
-        }
-
-        composable(Rutas.Clases.ruta) {
-            ClasesScreen()
+            usuarioActual?.let { user ->
+                DashboardScreen(
+                    usuario = user,
+                    onNavigateToScanner = { navController.navigate(Rutas.ScannerQR.ruta) },
+                    onNavigateToClases = { navController.navigate(Rutas.Clases.ruta) }
+                )
+            } ?: LaunchedEffect(Unit) {
+                navController.navigate(Rutas.Login.ruta) {
+                    popUpTo(0) { inclusive = true }
+                }
+            }
         }
 
         composable(Rutas.Profile.ruta) {
@@ -64,40 +76,78 @@ fun AppNavigation() {
                 ProfileScreen(
                     usuario = user,
                     onLogout = {
-                        usuarioActual = null
+                        onUsuarioChange(null)
+                        onRoleChange("alumno")
                         navController.navigate(Rutas.Login.ruta) {
-                            popUpTo(0)
+                            popUpTo(0) { inclusive = true }
                         }
                     }
                 )
+            } ?: LaunchedEffect(Unit) {
+                navController.navigate(Rutas.Login.ruta) {
+                    popUpTo(0) { inclusive = true }
+                }
             }
         }
 
         composable(Rutas.ScannerQR.ruta) {
-            QRScannerScreen(onAsistenciaRegistrada = { resultado ->
-                // Al dejar esto vacío (o solo con un log),
-                // la pantalla no se cerrará al escanear.
-                println("QR Escaneado con éxito: $resultado")
-
-                // Si quieres que después de unos segundos se limpie para otro escaneo,
-                // la lógica debe estar dentro de QRScannerScreen, no aquí.
-            })
+            usuarioActual?.let { user ->
+                QRScannerScreen(
+                    usuario = user,
+                    onAsistenciaRegistrada = { resultado ->
+                        println("QR Escaneado con éxito: $resultado")
+                    }
+                )
+            } ?: LaunchedEffect(Unit) {
+                navController.navigate(Rutas.Login.ruta) {
+                    popUpTo(0) { inclusive = true }
+                }
+            }
         }
 
-        // --- RUTAS DEL PROFESOR ---
+        composable(Rutas.Clases.ruta) {
+            usuarioActual?.let { user ->
+                ClasesScreen(usuario = user)
+            } ?: LaunchedEffect(Unit) {
+                navController.navigate(Rutas.Login.ruta) {
+                    popUpTo(0) { inclusive = true }
+                }
+            }
+        }
+
+        // --- PANTALLAS DEL PROFESOR ---
         composable(Rutas.ProfesorDashboard.ruta) {
-            ProfesorDashboardScreen(
-                onNavigateToQR = { navController.navigate(Rutas.GenerarQR.ruta) },
-                onNavigateToLista = { navController.navigate(Rutas.AsistenciaLista.ruta) }
-            )
+            usuarioActual?.let { user ->
+                ProfesorDashboardScreen(
+                    usuario = user,
+                    onNavigateToQR = { navController.navigate(Rutas.GenerarQR.ruta) },
+                    onNavigateToLista = { navController.navigate(Rutas.AsistenciaLista.ruta) }
+                )
+            } ?: LaunchedEffect(Unit) {
+                navController.navigate(Rutas.Login.ruta) {
+                    popUpTo(0) { inclusive = true }
+                }
+            }
         }
 
         composable(Rutas.GenerarQR.ruta) {
-            GenerarQRScreen()
+            usuarioActual?.let { user ->
+                GenerarQRScreen(usuario = user)
+            } ?: LaunchedEffect(Unit) {
+                navController.navigate(Rutas.Login.ruta) {
+                    popUpTo(0) { inclusive = true }
+                }
+            }
         }
 
         composable(Rutas.AsistenciaLista.ruta) {
-            AsistenciaAlumnosScreen()
+            usuarioActual?.let { user ->
+                AsistenciaAlumnosScreen(usuario = user)
+            } ?: LaunchedEffect(Unit) {
+                navController.navigate(Rutas.Login.ruta) {
+                    popUpTo(0) { inclusive = true }
+                }
+            }
         }
     }
 }
