@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 class ScannerViewModel(
-    private val repository: AsistenciaRepository = AsistenciaRepository() // Inyección simple
+    private val repository: AsistenciaRepository = AsistenciaRepository(), // Inyección simple
 ) : ViewModel() {
 
     // Inicializamos con el estado "Escaneando"

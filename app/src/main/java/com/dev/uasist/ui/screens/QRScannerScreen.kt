@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dev.uasist.model.AsistenciaUiState
 import com.dev.uasist.model.Usuario
@@ -19,7 +20,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -34,12 +34,11 @@ import java.util.concurrent.Executors
 fun QRScannerScreen(
     usuario: Usuario,
     viewModel: ScannerViewModel = viewModel(),
-    onAsistenciaRegistrada: (String) -> Unit
+    onAsistenciaRegistrada: (String) -> Unit,
 ) {
-    val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val uiState by viewModel.uiState.collectAsState()
-    
+
     var hasCameraPermission by remember { mutableStateOf(false) }
 
     // Lanzador para solicitar permisos

@@ -7,11 +7,14 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.dev.uasist.ui.screens.*
 import com.dev.uasist.model.Usuario
+import com.dev.uasist.data.AsistenciaRepository
 
 sealed class Rutas(val ruta: String) {
     object Login : Rutas("login")
     object SignUp : Rutas("signup")
     object Profile : Rutas("profile")
+    object ResetPassword : Rutas("nueva_clave")
+    object ForgotPassword : Rutas("recuperar_clave")
 
     // Alumno
     object AlumnoDashboard : Rutas("alumno_dashboard")
@@ -58,7 +61,17 @@ fun AppNavigation(
                 },
                 onNavigateToSignUp = {
                     navController.navigate(Rutas.SignUp.ruta)
+                },
+                onNavigateToForgotPassword = {
+                    navController.navigate(Rutas.ForgotPassword.ruta)
                 }
+            )
+        }
+
+        composable(Rutas.ForgotPassword.ruta) {
+            ForgotPasswordScreen(
+                repository = AsistenciaRepository(),
+                onBack = { navController.popBackStack() }
             )
         }
 
@@ -67,7 +80,6 @@ fun AppNavigation(
             usuarioActual?.let { user ->
                 DashboardScreen(
                     usuario = user,
-                    onNavigateToScanner = { navController.navigate(Rutas.ScannerQR.ruta) },
                     onNavigateToClases = { navController.navigate(Rutas.Clases.ruta) }
                 )
             } ?: LaunchedEffect(Unit) {
@@ -170,6 +182,17 @@ fun AppNavigation(
                     // Como simplificación para este flujo, lo mandaremos al Login.
                     navController.navigate(Rutas.Login.ruta) {
                         popUpTo(Rutas.SignUp.ruta) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable(Rutas.ResetPassword.ruta) {
+            ResetPasswordScreen(
+                repository = AsistenciaRepository(),
+                onFinish = {
+                    navController.navigate(Rutas.Login.ruta) {
+                        popUpTo(Rutas.ResetPassword.ruta) { inclusive = true }
                     }
                 }
             )
