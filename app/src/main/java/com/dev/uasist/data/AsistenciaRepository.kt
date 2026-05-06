@@ -104,7 +104,6 @@ class AsistenciaRepository {
     }
 
     // --- RECUPERACIÓN DE CONTRASEÑA ---
-
     suspend fun enviarCorreoRecuperacion(email: String): Boolean = withContext(Dispatchers.IO) {
         try {
             // El SDK usa resetPasswordForEmail
