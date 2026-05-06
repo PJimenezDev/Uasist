@@ -12,12 +12,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dev.uasist.model.Clase
+import com.dev.uasist.model.Usuario
 import com.dev.uasist.data.AsistenciaRepository
+import androidx.compose.runtime.produceState
 
 @Composable
-fun ClasesScreen() {
+fun ClasesScreen(usuario: Usuario) {
     val repository = remember { AsistenciaRepository() }
-    val clases = remember { repository.getTodasLasClases() }
+    val clases by produceState(initialValue = emptyList<Clase>(), repository, usuario.id) {
+        value = repository.getTodasLasClases(usuario.id)
+    }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text(text = "Mis Clases", fontSize = 24.sp, fontWeight = FontWeight.Bold)

@@ -15,9 +15,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dev.uasist.model.Usuario
 
 @Composable
-fun AsistenciaAlumnosScreen() {
+fun AsistenciaAlumnosScreen(usuario: Usuario) {
     var busqueda by remember { mutableStateOf("") }
     var filtroSeleccionado by remember { mutableStateOf("Todos") }
 

@@ -1,110 +1,95 @@
 package com.dev.uasist
 
 import android.os.Bundle
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Groups
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.QrCode
-import androidx.compose.material.icons.filled.QrCodeScanner
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.navigation.NavHostController
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.dev.uasist.ui.theme.UasistTheme
+import com.dev.uasist.model.Usuario
+import com.dev.uasist.ui.navigation.AppNavigation
+import com.dev.uasist.ui.navigation.Rutas
+import kotlinx.coroutines.launch
 
-// Importamos las pantallas que creamos anteriormente
-import com.dev.uasist.ui.screens.LoginScreen
-import com.dev.uasist.ui.screens.DashboardScreen
-import com.dev.uasist.ui.screens.ProfileScreen
-import com.dev.uasist.ui.screens.QRScannerScreen
-
-import com.dev.uasist.ui.screens.ClasesScreen
-import com.dev.uasist.ui.screens.GenerarQRScreen
-import com.dev.uasist.ui.screens.ProfesorDashboardScreen
-import com.dev.uasist.ui.screens.AsistenciaAlumnosScreen
-
-// 1. Definimos las rutas de la aplicación
-sealed class Rutas(val ruta: String) {
-    object Login : Rutas("login")
-    object AlumnoDashboard : Rutas("alumno_dashboard")
-    object Profile : Rutas("profile")
-    object ScannerQR : Rutas("scanner_qr")
-    object Clases : Rutas("clases")
-
-    // Rutas del Profesor
-    object ProfesorDashboard : Rutas("profesor_dashboard")
-    object GenerarQR : Rutas("generar_qr")
-    object AsistenciaLista : Rutas("asistencia_lista")
-}
-
-// Definición de los items del menú
+// --- Mantenemos los BottomNavItem como los tienes ---
 sealed class BottomNavItem(val route: String, val icon: ImageVector, val label: String) {
-    // Alumno
     object Inicio : BottomNavItem(Rutas.AlumnoDashboard.ruta, Icons.Default.Home, "Inicio")
     object QR : BottomNavItem(Rutas.ScannerQR.ruta, Icons.Default.QrCodeScanner, "QR")
     object Clases : BottomNavItem(Rutas.Clases.ruta, Icons.Default.DateRange, "Clases")
-
-    // Profesor
     object InicioProfesor : BottomNavItem(Rutas.ProfesorDashboard.ruta, Icons.Default.Home, "Inicio")
     object GenerarQR : BottomNavItem(Rutas.GenerarQR.ruta, Icons.Default.QrCode, "Generar QR")
     object Asistencia : BottomNavItem(Rutas.AsistenciaLista.ruta, Icons.Default.Groups, "Alumnos")
-
-    // Común
     object Perfil : BottomNavItem(Rutas.Profile.ruta, Icons.Default.Person, "Perfil")
 }
 
 class MainActivity : ComponentActivity() {
+
+    // Estado para disparar el Snackbar desde fuera de la UI
+    private var snackbarMessage = mutableStateOf<String?>(null)
+    private var navController: NavHostController? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             UasistTheme {
-                val navController = rememberNavController()
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                val controller = rememberNavController()
+                navController = controller
+
+                val snackbarHostState = remember { SnackbarHostState() }
+                val scope = rememberCoroutineScope()
+
+                val navBackStackEntry by controller.currentBackStackEntryAsState()
                 val currentDestination = navBackStackEntry?.destination
 
-                // Estado para el rol del usuario
+                var usuarioActual by remember { mutableStateOf<Usuario?>(null) }
                 var userRole by remember { mutableStateOf("alumno") }
 
-                // Solo mostrar menú si no estamos en el Login
-                val showBottomBar = currentDestination?.route != Rutas.Login.ruta
+                // Escuchar cambios en el mensaje del snackbar
+                LaunchedEffect(snackbarMessage.value) {
+                    snackbarMessage.value?.let { message ->
+                        scope.launch {
+                            snackbarHostState.showSnackbar(
+                                message = message,
+                                duration = SnackbarDuration.Long,
+                                withDismissAction = true
+                            )
+                            snackbarMessage.value = null // Limpiar después de mostrar
+                        }
+                    }
+                }
+
+                val pantallasSinBarra = listOf(
+                    Rutas.Login.ruta, Rutas.SignUp.ruta,
+                    Rutas.ForgotPassword.ruta, Rutas.ResetPassword.ruta
+                )
+                val showBottomBar = !pantallasSinBarra.contains(currentDestination?.route) && usuarioActual != null
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
+                    snackbarHost = { SnackbarHost(snackbarHostState) }, // <--- EL HOST DEL SNACKBAR
                     bottomBar = {
                         if (showBottomBar) {
                             NavigationBar {
                                 val items = if (userRole == "alumno") {
-                                    listOf(
-                                        BottomNavItem.Inicio,
-                                        BottomNavItem.QR,
-                                        BottomNavItem.Clases,
-                                        BottomNavItem.Perfil
-                                    )
+                                    listOf(BottomNavItem.Inicio, BottomNavItem.QR, BottomNavItem.Clases, BottomNavItem.Perfil)
                                 } else {
-                                    listOf(
-                                        BottomNavItem.InicioProfesor,
-                                        BottomNavItem.GenerarQR,
-                                        BottomNavItem.Asistencia,
-                                        BottomNavItem.Perfil
-                                    )
+                                    listOf(BottomNavItem.InicioProfesor, BottomNavItem.GenerarQR, BottomNavItem.Asistencia, BottomNavItem.Perfil)
                                 }
                                 items.forEach { item ->
                                     NavigationBarItem(
@@ -112,10 +97,8 @@ class MainActivity : ComponentActivity() {
                                         label = { Text(item.label) },
                                         selected = currentDestination?.hierarchy?.any { it.route == item.route } == true,
                                         onClick = {
-                                            navController.navigate(item.route) {
-                                                popUpTo(navController.graph.findStartDestination().id) {
-                                                    saveState = true
-                                                }
+                                            controller.navigate(item.route) {
+                                                popUpTo(controller.graph.findStartDestination().id) { saveState = true }
                                                 launchSingleTop = true
                                                 restoreState = true
                                             }
@@ -126,87 +109,44 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 ) { innerPadding ->
-                    AppNavigation(
-                        navController = navController,
-                        onRoleChange = { userRole = it },
-                        modifier = Modifier.padding(innerPadding)
-                    )
+                    Box(modifier = Modifier.padding(innerPadding)) {
+                        AppNavigation(
+                            navController = controller,
+                            usuarioActual = usuarioActual,
+                            onUsuarioChange = { usuarioActual = it },
+                            onRoleChange = { userRole = it }
+                        )
+                    }
+                }
+
+                LaunchedEffect(Unit) {
+                    intent?.let { handleIntent(it) }
                 }
             }
         }
     }
-}
 
-// 4. El Componente que maneja qué pantalla se muestra
-@Composable
-fun AppNavigation(
-    navController: androidx.navigation.NavHostController,
-    onRoleChange: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    NavHost(
-        navController = navController,
-        startDestination = Rutas.Login.ruta,
-        modifier = modifier
-    ) {
-        // --- PANTALLA DE LOGIN ---
-        composable(Rutas.Login.ruta) {
-            LoginScreen(onLoginSuccess = { esProfe ->
-                val rutaDestino = if (esProfe) Rutas.ProfesorDashboard.ruta else Rutas.AlumnoDashboard.ruta
-                onRoleChange(if (esProfe) "profesor" else "alumno")
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        intent?.let { handleIntent(it) }
+    }
 
-                navController.navigate(rutaDestino) {
-                    // Esto elimina la pantalla de Login del historial
-                    popUpTo(Rutas.Login.ruta) { inclusive = true }
+    private fun handleIntent(intent: Intent) {
+        val data: Uri? = intent.data
+        if (data != null && data.scheme == "uasist") {
+            when (data.host) {
+                "reset-password" -> {
+                    navController?.navigate(Rutas.ResetPassword.ruta)
                 }
-            })
-        }
-
-        // --- PANTALLAS DEL ALUMNO ---
-        composable(Rutas.AlumnoDashboard.ruta) {
-            DashboardScreen(
-                onNavigateToScanner = { navController.navigate(Rutas.ScannerQR.ruta) },
-                onNavigateToClases = { navController.navigate(Rutas.Clases.ruta) }
-            )
-        }
-
-        composable(Rutas.Profile.ruta) {
-            ProfileScreen(onLogout = {
-                navController.navigate(Rutas.Login.ruta) {
-                    popUpTo(0) // Borra el historial para no volver atrás con el botón de retroceso
+                "login" -> {
+                    // Actualizamos el estado para que el LaunchedEffect lo dispare
+                    snackbarMessage.value = "¡Cuenta verificada! Ya puedes iniciar sesión."
+                    navController?.navigate(Rutas.Login.ruta) {
+                        popUpTo(0)
+                    }
                 }
-            })
-        }
-
-        composable(Rutas.ScannerQR.ruta) {
-            QRScannerScreen(onAsistenciaRegistrada = { resultado ->
-                // Al dejar esto vacío (o solo con un log),
-                // la pantalla no se cerrará al escanear.
-                println("QR Escaneado con éxito: $resultado")
-
-                // Si quieres que después de unos segundos se limpie para otro escaneo,
-                // la lógica debe estar dentro de QRScannerScreen, no aquí.
-            })
-        }
-
-        composable(Rutas.Clases.ruta) {
-            ClasesScreen()
-        }
-
-        // --- PANTALLAS DEL PROFESOR ---
-        composable(Rutas.ProfesorDashboard.ruta) {
-            ProfesorDashboardScreen(
-                onNavigateToQR = { navController.navigate(Rutas.GenerarQR.ruta) },
-                onNavigateToLista = { navController.navigate(Rutas.AsistenciaLista.ruta) }
-            )
-        }
-
-        composable(Rutas.GenerarQR.ruta) {
-            GenerarQRScreen()
-        }
-
-        composable(Rutas.AsistenciaLista.ruta) {
-            AsistenciaAlumnosScreen()
+            }
         }
     }
 }

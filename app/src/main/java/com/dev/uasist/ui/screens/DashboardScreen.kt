@@ -3,10 +3,9 @@ package com.dev.uasist.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.CalendarToday
@@ -18,26 +17,34 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dev.uasist.model.Usuario
+import com.dev.uasist.model.Clase
 import com.dev.uasist.data.AsistenciaRepository
 
 @Composable
 fun DashboardScreen(
-    onNavigateToScanner: () -> Unit,
+    usuario: Usuario,
     onNavigateToClases: () -> Unit,
     // Inyectamos el repositorio temporalmente para obtener datos (simulando los estados de React)
     repository: AsistenciaRepository = remember { AsistenciaRepository() },
 ) {
-    val clasesHoy = repository.getClasesHoy()
-    val asistenciaGeneral = repository.getAsistenciaGeneral()
+    // Usamos produceState para manejar llamadas suspendidas
+    val clasesHoy by produceState(initialValue = emptyList<Clase>(), repository, usuario.id) {
+        value = repository.getClasesHoy(usuario.id)
+    }
+    val asistenciaGeneral by produceState(initialValue = 0, repository, usuario.id) {
+        value = repository.getAsistenciaGeneral(usuario.id)
+    }
     val scrollState = rememberScrollState()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF9FAFB)) // bg-gray-50
+            .verticalScroll(scrollState)
             .padding(16.dp)
     ) {
-        Text("Hola, Alumno 👋", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text("Hola, ${usuario.nombre} 👋", fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Text("Aquí está tu resumen de hoy", color = Color.Gray, fontSize = 14.sp)
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -54,7 +61,7 @@ fun DashboardScreen(
                 Text("$asistenciaGeneral%", color = Color.White, fontSize = 36.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
                 LinearProgressIndicator(
-                    progress = asistenciaGeneral / 100f,
+                    progress = { asistenciaGeneral / 100f },
                     modifier = Modifier.fillMaxWidth(),
                     color = Color.White,
                     trackColor = Color.White.copy(alpha = 0.3f)
