@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Login
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -18,10 +19,15 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import com.dev.uasist.data.AsistenciaRepository
+import com.dev.uasist.model.Usuario
+
 @Composable
 fun LoginScreen(
-    onLoginSuccess: (esProfe: Boolean) -> Unit
+    onLoginSuccess: (usuario: Usuario) -> Unit
 ) {
+    val repository = remember { AsistenciaRepository() }
+    val scope = rememberCoroutineScope()
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var error by remember { mutableStateOf("") }
@@ -100,11 +106,20 @@ fun LoginScreen(
                 // Botón Iniciar Sesión
                 Button(
                     onClick = {
-                        // Lógica de simulación de login basada en tu archivo React
-                        when {
-                            email == "alumno@mail.com" -> onLoginSuccess(false)
-                            email == "profesor@mail.com" -> onLoginSuccess(true)
-                            else -> error = "Credenciales incorrectas"
+                        scope.launch {
+                            try {
+                                error = "" // Limpiar errores previos
+                                val usuarioLogueado = repository.login(email)
+                                if (usuarioLogueado != null) {
+                                    onLoginSuccess(usuarioLogueado)
+                                } else {
+                                    error = "Usuario no encontrado en la base de datos"
+                                }
+                            } catch (e: Exception) {
+                                // Esto hará que el error aparezca en tu pantalla en texto rojo
+                                error = "Error de conexión: ${e.localizedMessage}"
+                                e.printStackTrace()
+                            }
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(56.dp),

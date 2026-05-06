@@ -17,8 +17,10 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import com.dev.uasist.utils.generarBitmapQR
 
+import com.dev.uasist.model.Usuario
+
 @Composable
-fun GenerarQRScreen() {
+fun GenerarQRScreen(usuario: Usuario) {
     var qrGenerado by remember { mutableStateOf(false) }
     var bitmapQR by remember { mutableStateOf<Bitmap?>(null) }
 

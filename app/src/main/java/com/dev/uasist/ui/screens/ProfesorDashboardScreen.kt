@@ -26,14 +26,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import com.dev.uasist.model.Usuario
+import com.dev.uasist.model.Materia
+
 @Composable
 fun ProfesorDashboardScreen(
+    usuario: Usuario,
     onNavigateToQR: () -> Unit,
     onNavigateToLista: () -> Unit
 ) {
+    val profesor = usuario as? Usuario.Profesor
+    val materia = profesor?.materiaImpartida?.nombre ?: "Materia"
+    val sala = profesor?.salaAsignada ?: "No asignada"
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Panel del Profesor", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-        Text("Gestión de la asignatura: Matemáticas", color = Color.Gray)
+        Text("Hola, ${usuario.nombre} 👋", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text("Gestión de la asignatura: $materia", color = Color.Gray)
+        Text("Sala: $sala", color = Color.Gray, fontSize = 14.sp)
 
         Spacer(modifier = Modifier.height(20.dp))
 

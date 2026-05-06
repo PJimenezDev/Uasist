@@ -1,65 +1,166 @@
 package com.dev.uasist.data
 
+import android.util.Log
+import com.dev.uasist.data.dto.*
+import com.dev.uasist.data.network.SupabaseManager
 import com.dev.uasist.model.*
+import io.github.jan.supabase.postgrest.from
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import java.util.Calendar
 
 class AsistenciaRepository {
 
-    private val estudiantes = listOf(
-        Estudiante("est1", "Carlos", "Ramírez López", "carlos@mail.com"),
-        Estudiante("est2", "María", "González Silva", "maria@mail.com"),
-        Estudiante("est3", "Pedro", "Martínez Rojas", "pedro.martinez@mail.com"),
-        Estudiante("est4", "Ana", "Fernández Torres", "ana.fernandez@mail.com")
-    )
+    private val TAG = "AsistenciaRepository"
 
-    private val clases = listOf(
-        Clase("1", "Matemáticas", "Prof. González", "08:00 - 10:00", listOf("Lunes", "Miércoles", "Viernes"), 28, 30),
-        Clase("2", "Física", "Prof. Martínez", "10:00 - 12:00", listOf("Martes", "Jueves"), 18, 20),
-        Clase("3", "Química", "Prof. Rodríguez", "14:00 - 16:00", listOf("Lunes", "Miércoles"), 15, 20),
-        Clase("4", "Lenguaje", "Prof. Silva", "16:00 - 18:00", listOf("Martes", "Jueves"), 19, 20),
-        Clase("5", "Historia", "Prof. Pérez", "08:00 - 10:00", listOf("Martes", "Jueves"), 16, 20),
-        Clase("6", "Biología", "Prof. Torres", "12:00 - 14:00", listOf("Lunes", "Viernes"), 13, 16)
-    )
+    // --- AUTENTICACIÓN / PERFIL ---
+    suspend fun login(email: String): Usuario? = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "Intentando login para: $email")
 
-    private var asistenciasCache = mutableListOf<AsistenciaEstudiante>()
+            val result = SupabaseManager.client.from("perfiles")
+                .select {
+                    filter { eq("email", email) }
+                }
+                .decodeSingleOrNull<PerfilDto>()
 
-    init {
-        generarAsistenciasIniciales()
-    }
+            result?.let { dto ->
+                Log.d(TAG, "Perfil encontrado: ${dto.rol}")
 
-    private fun generarAsistenciasIniciales() {
-        estudiantes.forEach { estudiante ->
-            clases.forEach { clase ->
-                asistenciasCache.add(
-                    AsistenciaEstudiante(estudiante.id, clase.id, (0..clase.totalClases).random(), clase.totalClases)
-                )
+                if (dto.rol.equals("profesor", ignoreCase = true)) {
+                    // MAPEÓ SEGURO DE MATERIA: Evita que la app muera si el texto no coincide exactamente
+                    val materiaMapeada = Materia.entries.find {
+                        it.nombre.equals(dto.materiaImpartida, ignoreCase = true)
+                    } ?: Materia.MATEMATICAS // Valor por defecto si hay error en DB
+
+                    Usuario.Profesor(
+                        id = dto.id,
+                        nombre = dto.nombre,
+                        apellidos = dto.apellidos,
+                        email = dto.email,
+                        materiaImpartida = materiaMapeada,
+                        salaAsignada = dto.salaAsignada ?: "No asignada"
+                    )
+                } else {
+                    Usuario.Estudiante(
+                        id = dto.id,
+                        nombre = dto.nombre,
+                        apellidos = dto.apellidos,
+                        email = dto.email
+                    )
+                }
             }
+        } catch (t: Throwable) {
+            // CAPTURA FATAL: Esto capturará errores de librerías, serialización y red.
+            Log.e(TAG, "!!! ERROR CRÍTICO EN LOGIN !!!")
+            Log.e(TAG, "Mensaje: ${t.localizedMessage}")
+            Log.e(TAG, "Causa: ${t.cause}")
+            t.printStackTrace() // Esto imprime el stacktrace completo en el log
+            null
         }
     }
 
-    // --- NUEVO MÉTODO ---
-    fun getTodasLasClases(): List<Clase> {
-        return clases
+    // --- CLASES ---
+    suspend fun getTodasLasClases(): List<Clase> = withContext(Dispatchers.IO) {
+        try {
+            val result = SupabaseManager.client.from("clases")
+                .select()
+                .decodeList<ClaseDto>()
+
+            result.map { it.toDomain() }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al obtener clases: ${e.message}")
+            emptyList()
+        }
     }
 
-    fun getClasesHoy(): List<Clase> {
+    suspend fun getClasesHoy(): List<Clase> = withContext(Dispatchers.IO) {
         val diasSemana = listOf("Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado")
-        val hoy = diasSemana[Calendar.getInstance().get(Calendar.DAY_OF_WEEK) - 1]
-        return clases.filter { it.dias.contains(hoy) }
-    }
+        val calendar = Calendar.getInstance()
+        val hoy = diasSemana[calendar.get(Calendar.DAY_OF_WEEK) - 1]
 
-    fun getAsistenciaGeneral(): Int {
-        val totalAsist = clases.sumOf { it.asistencias }
-        val totalClases = clases.sumOf { it.totalClases }
-        return if (totalClases > 0) Math.round((totalAsist.toDouble() / totalClases) * 100).toInt() else 0
-    }
-
-    fun marcarAsistenciaEstudiante(estudianteId: String, claseId: String): Boolean {
-        val asistencia = asistenciasCache.find { it.estudianteId == estudianteId && it.claseId == claseId }
-        if (asistencia != null && asistencia.asistencias < asistencia.totalClases) {
-            asistencia.asistencias += 1
-            return true
+        try {
+            getTodasLasClases().filter { clase ->
+                clase.dias.any { dia -> dia.equals(hoy, ignoreCase = true) }
+            }
+        } catch (e: Exception) {
+            emptyList()
         }
-        return false
     }
+
+    // --- ASISTENCIA ---
+    suspend fun marcarAsistenciaEstudiante(estudianteId: String, claseId: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            // 1. Intentar obtener registro actual
+            val asistenciaActual = SupabaseManager.client.from("asistencia_estudiante")
+                .select {
+                    filter {
+                        eq("estudiante_id", estudianteId)
+                        eq("clase_id", claseId)
+                    }
+                }.decodeSingleOrNull<AsistenciaDto>()
+
+            if (asistenciaActual != null) {
+                // 2. Incrementar contador
+                SupabaseManager.client.from("asistencia_estudiante")
+                    .update({
+                        set("asistencias_count", asistenciaActual.asistenciasCount + 1)
+                    }) {
+                        filter {
+                            eq("estudiante_id", estudianteId)
+                            eq("clase_id", claseId)
+                        }
+                    }
+                true
+            } else {
+                // 3. Si no existe, crear el primer registro
+                SupabaseManager.client.from("asistencia_estudiante").insert(
+                    AsistenciaDto(estudianteId, claseId, 1)
+                )
+                true
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al marcar asistencia: ${e.message}")
+            false
+        }
+    }
+
+    suspend fun getAsistenciaGeneral(estudianteId: String): Int = withContext(Dispatchers.IO) {
+        try {
+            val asistencias = SupabaseManager.client.from("asistencia_estudiante")
+                .select { filter { eq("estudiante_id", estudianteId) } }
+                .decodeList<AsistenciaDto>()
+
+            val totalAsist = asistencias.sumOf { it.asistenciasCount }
+            // Simulación: total clases dadas (esto debería venir de una tabla de registros)
+            val totalClasesDadas = 20
+
+            if (totalClasesDadas > 0) {
+                ((totalAsist.toDouble() / totalClasesDadas) * 100).toInt().coerceAtMost(100)
+            } else 0
+        } catch (e: Exception) {
+            0
+        }
+    }
+
+    // --- HELPER MAPPERS ---
+    private fun ClaseDto.toDomain() = Clase(
+        id = this.id,
+        nombre = this.nombre,
+        profesorId = this.profesorId,
+        profesor = "Profesor Titular",
+        horario = this.horario,
+        dias = this.dias,
+        asistencias = 0,
+        totalClases = this.totalClases
+    )
 }
+
+@Serializable
+data class AsistenciaDto(
+    @SerialName("estudiante_id") val estudianteId: String,
+    @SerialName("clase_id") val claseId: String,
+    @SerialName("asistencias_count") val asistenciasCount: Int
+)

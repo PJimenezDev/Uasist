@@ -18,17 +18,25 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dev.uasist.model.Usuario
+import com.dev.uasist.model.Clase
 import com.dev.uasist.data.AsistenciaRepository
 
 @Composable
 fun DashboardScreen(
+    usuario: Usuario,
     onNavigateToScanner: () -> Unit,
     onNavigateToClases: () -> Unit,
     // Inyectamos el repositorio temporalmente para obtener datos (simulando los estados de React)
     repository: AsistenciaRepository = remember { AsistenciaRepository() },
 ) {
-    val clasesHoy = repository.getClasesHoy()
-    val asistenciaGeneral = repository.getAsistenciaGeneral()
+    // Usamos produceState para manejar llamadas suspendidas
+    val clasesHoy by produceState<List<Clase>>(initialValue = emptyList(), repository) {
+        value = repository.getClasesHoy()
+    }
+    val asistenciaGeneral by produceState<Int>(initialValue = 0, repository, usuario.id) {
+        value = repository.getAsistenciaGeneral(usuario.id)
+    }
     val scrollState = rememberScrollState()
 
     Column(
@@ -37,7 +45,7 @@ fun DashboardScreen(
             .background(Color(0xFFF9FAFB)) // bg-gray-50
             .padding(16.dp)
     ) {
-        Text("Hola, Alumno 👋", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text("Hola, ${usuario.nombre} 👋", fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Text("Aquí está tu resumen de hoy", color = Color.Gray, fontSize = 14.sp)
 
         Spacer(modifier = Modifier.height(24.dp))
