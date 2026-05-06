@@ -20,8 +20,8 @@ import androidx.compose.runtime.produceState
 @Composable
 fun ClasesScreen(usuario: Usuario) {
     val repository = remember { AsistenciaRepository() }
-    val clases by produceState<List<Clase>>(initialValue = emptyList()) {
-        value = repository.getTodasLasClases()
+    val clases by produceState(initialValue = emptyList<Clase>(), repository, usuario.id) {
+        value = repository.getTodasLasClases(usuario.id)
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {

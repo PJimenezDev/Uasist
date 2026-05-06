@@ -6,7 +6,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Login
+import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import kotlinx.coroutines.launch
@@ -25,7 +25,8 @@ import com.dev.uasist.model.Usuario
 @Composable
 fun LoginScreen(
     onLoginSuccess: (usuario: Usuario) -> Unit,
-    onNavigateToSignUp: () -> Unit
+    onNavigateToSignUp: () -> Unit,
+    onNavigateToForgotPassword: () -> Unit
 ) {
     val repository = remember { AsistenciaRepository() }
     val scope = rememberCoroutineScope()
@@ -62,7 +63,7 @@ fun LoginScreen(
                     modifier = Modifier.size(64.dp)
                 ) {
                     Icon(
-                        Icons.Default.Login,
+                        Icons.AutoMirrored.Filled.Login,
                         contentDescription = null,
                         tint = Color(0xFF2563EB),
                         modifier = Modifier.padding(16.dp)
@@ -98,11 +99,32 @@ fun LoginScreen(
                     shape = RoundedCornerShape(12.dp)
                 )
 
-                if (error.isNotEmpty()) {
-                    Text(error, color = Color.Red, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+                // Enlace sutil para recuperar contraseña
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+                    TextButton(onClick = { onNavigateToForgotPassword() }) {
+                        Text(
+                            text = "¿Olvidaste tu contraseña?",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF9333EA)
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                if (error.isNotEmpty()) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF2F2)),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = error,
+                            color = Color(0xFFDC2626),
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(12.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
 
                 // Botón Iniciar Sesión
                 Button(

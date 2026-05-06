@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -105,11 +106,10 @@ fun ProfileScreen(usuario: Usuario, onLogout: () -> Unit) {
 
         // Lógica de botones (Editar / Guardar)
         if (!isEditing) {
-            Button(
+            OutlinedButton(
                 onClick = { isEditing = true },
                 modifier = Modifier.fillMaxWidth().height(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black),
-                border = ButtonDefaults.outlinedButtonBorder,
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White, contentColor = Color.Black),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -144,7 +144,7 @@ fun ProfileScreen(usuario: Usuario, onLogout: () -> Unit) {
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Icon(Icons.Default.ExitToApp, contentDescription = null, modifier = Modifier.size(18.dp))
+            Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(8.dp))
             Text("Cerrar Sesión", color = Color.White)
         }

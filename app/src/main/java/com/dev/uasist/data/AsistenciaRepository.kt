@@ -9,36 +9,40 @@ import io.github.jan.supabase.gotrue.providers.builtin.Email
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 import java.util.Calendar
 
 class AsistenciaRepository {
 
-    private val TAG = "AsistenciaRepository"
+    companion object {
+        private const val TAG = "AsistenciaRepository"
+    }
 
+    /**
+     * REGISTRO: Crea usuario en Auth e inserta perfil en la tabla pública.
+     */
     suspend fun signUp(email: String, pass: String, nombre: String, apellidos: String): Boolean = withContext(Dispatchers.IO) {
         try {
+            // Aseguramos que no haya sesiones activas previas
+            SupabaseManager.client.auth.signOut()
+
             // 1. Crear usuario en Auth
-            // Usamos la sintaxis más reciente del SDK
             val authResponse = SupabaseManager.client.auth.signUpWith(Email) {
                 this.email = email
                 this.password = pass
             }
 
-            // 2. Intentar obtener el ID del usuario recién creado
-            // Si authResponse es null o no tiene ID, lo buscamos en el estado actual de la sesión
-            val userId = authResponse?.id
+            // En versiones nuevas del SDK, el ID está en authResponse o en el usuario creado
+            val userId = authResponse?.id ?: SupabaseManager.client.auth.currentUserOrNull()?.id
 
             if (userId == null) {
                 Log.e(TAG, "Auth exitoso pero no se pudo obtener el ID del usuario")
                 return@withContext false
             }
 
-            Log.d(TAG, "Usuario creado en Auth con ID: $userId. Procediendo a crear perfil...")
+            Log.d(TAG, "Usuario en Auth: $userId. Creando perfil...")
 
-            // 3. Insertar perfil en la tabla 'perfiles'
-            // IMPORTANTE: Asegúrate que PerfilDto acepte nulos en materia y sala
+            // 2. Insertar perfil
+            // Nota: "estudiante" debe coincidir con el valor de tu ENUM en Postgres
             val nuevoPerfil = PerfilDto(
                 id = userId,
                 nombre = nombre,
@@ -51,20 +55,21 @@ class AsistenciaRepository {
 
             SupabaseManager.client.from("perfiles").insert(nuevoPerfil)
 
-            Log.d(TAG, "Perfil insertado correctamente en la tabla")
+            Log.d(TAG, "Registro completo exitoso")
             true
 
         } catch (e: Exception) {
-            // Log detallado para saber si el error es de Auth o de la Tabla
-            Log.e(TAG, "Error detallado en registro: ${e.localizedMessage}")
-            e.printStackTrace()
+            Log.e(TAG, "ERROR EN REGISTRO: ${e.localizedMessage}")
+            // Si falla el insert de perfil pero el auth se creó, aquí podrías manejarlo
             false
         }
     }
+
+    /**
+     * LOGIN: Obtiene los datos del perfil según el email
+     */
     suspend fun login(email: String): Usuario? = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Intentando login para: $email")
-
             val result = SupabaseManager.client.from("perfiles")
                 .select {
                     filter { eq("email", email) }
@@ -72,13 +77,10 @@ class AsistenciaRepository {
                 .decodeSingleOrNull<PerfilDto>()
 
             result?.let { dto ->
-                Log.d(TAG, "Perfil encontrado: ${dto.rol}")
-
                 if (dto.rol.equals("profesor", ignoreCase = true)) {
-                    // MAPEÓ SEGURO DE MATERIA: Evita que la app muera si el texto no coincide exactamente
                     val materiaMapeada = Materia.entries.find {
                         it.nombre.equals(dto.materiaImpartida, ignoreCase = true)
-                    } ?: Materia.MATEMATICAS // Valor por defecto si hay error en DB
+                    } ?: Materia.MATEMATICAS
 
                     Usuario.Profesor(
                         id = dto.id,
@@ -90,55 +92,115 @@ class AsistenciaRepository {
                     )
                 } else {
                     Usuario.Estudiante(
-                        id = dto.id,
-                        nombre = dto.nombre,
-                        apellidos = dto.apellidos,
-                        email = dto.email
+                        id = dto.id, nombre = dto.nombre,
+                        apellidos = dto.apellidos, email = dto.email
                     )
                 }
             }
         } catch (t: Throwable) {
-            // CAPTURA FATAL: Esto capturará errores de librerías, serialización y red.
-            Log.e(TAG, "!!! ERROR CRÍTICO EN LOGIN !!!")
-            Log.e(TAG, "Mensaje: ${t.localizedMessage}")
-            Log.e(TAG, "Causa: ${t.cause}")
-            t.printStackTrace() // Esto imprime el stacktrace completo en el log
+            Log.e(TAG, "Error crítico en login: ${t.localizedMessage}")
             null
         }
     }
 
-    // --- CLASES ---
-    suspend fun getTodasLasClases(): List<Clase> = withContext(Dispatchers.IO) {
+    // --- RECUPERACIÓN DE CONTRASEÑA ---
+
+    suspend fun enviarCorreoRecuperacion(email: String): Boolean = withContext(Dispatchers.IO) {
         try {
-            val result = SupabaseManager.client.from("clases")
+            // El SDK usa resetPasswordForEmail
+            SupabaseManager.client.auth.resetPasswordForEmail(
+                email = email,
+                redirectUrl = "uasist://reset-password"
+            )
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error enviando recuperación: ${e.message}")
+            false
+        }
+    }
+
+    suspend fun actualizarPassword(nuevaPassword: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            // modifyUser en la versión 2.x del SDK
+            SupabaseManager.client.auth.modifyUser {
+                password = nuevaPassword
+            }
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al cambiar contraseña: ${e.message}")
+            false
+        }
+    }
+
+    // --- CLASES ---
+
+    suspend fun getTodasLasClases(estudianteId: String? = null): List<Clase> = withContext(Dispatchers.IO) {
+        try {
+            val clasesDto = SupabaseManager.client.from("clases")
                 .select()
                 .decodeList<ClaseDto>()
 
-            result.map { it.toDomain() }
+            val asistencias = if (estudianteId != null) {
+                SupabaseManager.client.from("asistencia_estudiante")
+                    .select {
+                        filter { eq("estudiante_id", estudianteId) }
+                    }.decodeList<AsistenciaDto>()
+            } else {
+                emptyList()
+            }
+
+            clasesDto.map { dto ->
+                val asistencia = asistencias.find { it.claseId == dto.id }
+                dto.toDomain(asistencia?.asistenciasCount ?: 0)
+            }
         } catch (e: Exception) {
-            Log.e(TAG, "Error al obtener clases: ${e.message}")
+            Log.e(TAG, "Error clases: ${e.message}")
             emptyList()
         }
     }
 
-    suspend fun getClasesHoy(): List<Clase> = withContext(Dispatchers.IO) {
+    suspend fun getClasesHoy(estudianteId: String? = null): List<Clase> = withContext(Dispatchers.IO) {
         val diasSemana = listOf("Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado")
         val calendar = Calendar.getInstance()
         val hoy = diasSemana[calendar.get(Calendar.DAY_OF_WEEK) - 1]
 
-        try {
-            getTodasLasClases().filter { clase ->
-                clase.dias.any { dia -> dia.equals(hoy, ignoreCase = true) }
-            }
-        } catch (e: Exception) {
-            emptyList()
+        getTodasLasClases(estudianteId).filter { clase ->
+            clase.dias.any { it.equals(hoy, ignoreCase = true) }
         }
     }
 
     // --- ASISTENCIA ---
+
+    suspend fun getAsistenciaGeneral(estudianteId: String): Int = withContext(Dispatchers.IO) {
+        try {
+            val asistencias = SupabaseManager.client.from("asistencia_estudiante")
+                .select {
+                    filter { eq("estudiante_id", estudianteId) }
+                }.decodeList<AsistenciaDto>()
+
+            if (asistencias.isEmpty()) return@withContext 0
+
+            val clases = getTodasLasClases()
+            var totalAsistencias = 0
+            var totalPosibles = 0
+
+            asistencias.forEach { asis ->
+                val clase = clases.find { it.id == asis.claseId }
+                if (clase != null) {
+                    totalAsistencias += asis.asistenciasCount
+                    totalPosibles += clase.totalClases
+                }
+            }
+
+            if (totalPosibles == 0) 0 else (totalAsistencias * 100) / totalPosibles
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al obtener asistencia general: ${e.message}")
+            0
+        }
+    }
+
     suspend fun marcarAsistenciaEstudiante(estudianteId: String, claseId: String): Boolean = withContext(Dispatchers.IO) {
         try {
-            // 1. Intentar obtener registro actual
             val asistenciaActual = SupabaseManager.client.from("asistencia_estudiante")
                 .select {
                     filter {
@@ -148,7 +210,6 @@ class AsistenciaRepository {
                 }.decodeSingleOrNull<AsistenciaDto>()
 
             if (asistenciaActual != null) {
-                // 2. Incrementar contador
                 SupabaseManager.client.from("asistencia_estudiante")
                     .update({
                         set("asistencias_count", asistenciaActual.asistenciasCount + 1)
@@ -158,54 +219,26 @@ class AsistenciaRepository {
                             eq("clase_id", claseId)
                         }
                     }
-                true
             } else {
-                // 3. Si no existe, crear el primer registro
                 SupabaseManager.client.from("asistencia_estudiante").insert(
                     AsistenciaDto(estudianteId, claseId, 1)
                 )
-                true
             }
+            true
         } catch (e: Exception) {
-            Log.e(TAG, "Error al marcar asistencia: ${e.message}")
+            Log.e(TAG, "Error asistencia: ${e.message}")
             false
         }
     }
 
-    suspend fun getAsistenciaGeneral(estudianteId: String): Int = withContext(Dispatchers.IO) {
-        try {
-            val asistencias = SupabaseManager.client.from("asistencia_estudiante")
-                .select { filter { eq("estudiante_id", estudianteId) } }
-                .decodeList<AsistenciaDto>()
-
-            val totalAsist = asistencias.sumOf { it.asistenciasCount }
-            // Simulación: total clases dadas (esto debería venir de una tabla de registros)
-            val totalClasesDadas = 20
-
-            if (totalClasesDadas > 0) {
-                ((totalAsist.toDouble() / totalClasesDadas) * 100).toInt().coerceAtMost(100)
-            } else 0
-        } catch (e: Exception) {
-            0
-        }
-    }
-
-    // --- HELPER MAPPERS ---
-    private fun ClaseDto.toDomain() = Clase(
+    private fun ClaseDto.toDomain(asistenciasCount: Int = 0) = Clase(
         id = this.id,
         nombre = this.nombre,
         profesorId = this.profesorId,
         profesor = "Profesor Titular",
         horario = this.horario,
         dias = this.dias,
-        asistencias = 0,
+        asistencias = asistenciasCount,
         totalClases = this.totalClases
     )
 }
-
-@Serializable
-data class AsistenciaDto(
-    @SerialName("estudiante_id") val estudianteId: String,
-    @SerialName("clase_id") val claseId: String,
-    @SerialName("asistencias_count") val asistenciasCount: Int
-)
