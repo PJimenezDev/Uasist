@@ -97,7 +97,21 @@ class MainActivity : ComponentActivity() {
                                         label = { Text(item.label) },
                                         selected = currentDestination?.hierarchy?.any { it.route == item.route } == true,
                                         onClick = {
-                                            controller.navigate(item.route) {
+                                            // LÓGICA DINÁMICA: Si la ruta necesita parámetros, los inyectamos aquí
+                                            val rutaReal = when (item.route) {
+                                                Rutas.AsistenciaLista.ruta -> {
+                                                    val profesor = usuarioActual as? Usuario.Profesor
+                                                    "asistencia_lista/${profesor?.id ?: "error"}/${profesor?.materiaImpartida?.nombre ?: "Materia"}"
+                                                }
+                                                Rutas.GenerarQR.ruta -> {
+                                                    // Si el profesor intenta ir al QR desde la barra pero no ha iniciado clase
+                                                    // mejor lo mandamos al Dashboard para que le de al botón de "Iniciar"
+                                                    Rutas.ProfesorDashboard.ruta
+                                                }
+                                                else -> item.route
+                                            }
+
+                                            controller.navigate(rutaReal) {
                                                 popUpTo(controller.graph.findStartDestination().id) { saveState = true }
                                                 launchSingleTop = true
                                                 restoreState = true

@@ -7,9 +7,15 @@ import com.dev.uasist.model.*
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.providers.builtin.Email
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.annotations.SupabaseExperimental
+import io.github.jan.supabase.postgrest.query.filter.FilterOperation
+import io.github.jan.supabase.postgrest.query.filter.FilterOperator
+import io.github.jan.supabase.realtime.selectAsFlow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Calendar
+import kotlinx.coroutines.flow.Flow
+import com.dev.uasist.data.dto.AsistenciaDetalladaDto
 
 class AsistenciaRepository {
 
@@ -18,62 +24,79 @@ class AsistenciaRepository {
     }
 
     /**
-     * REGISTRO: Crea usuario en Auth e inserta perfil en la tabla pública.
+     * ESCUCHA EN TIEMPO REAL: Alumnos presentes en una clase específica.
+     * Esta es la función que faltaba.
      */
-    suspend fun signUp(email: String, pass: String, nombre: String, apellidos: String): Boolean = withContext(Dispatchers.IO) {
+    @OptIn(SupabaseExperimental::class)
+    fun observarAsistentesPorClase(claseId: String): Flow<List<AsistenciaDetalladaDto>> {
+        return SupabaseManager.client.from("detalles_asistencia_view")
+            .selectAsFlow(
+                primaryKey = AsistenciaDetalladaDto::estudianteId,
+                filter = FilterOperation("clase_id", FilterOperator.EQ, claseId)
+            )
+    }
+
+    /**
+     * ESCUCHA EN TIEMPO REAL: Historial total de un profesor.
+     */
+    @OptIn(SupabaseExperimental::class)
+    fun observarHistorialAsistentes(profesorId: String): Flow<List<AsistenciaDetalladaDto>> {
+        return SupabaseManager.client.from("detalles_asistencia_view")
+            .selectAsFlow(
+                primaryKey = AsistenciaDetalladaDto::estudianteId,
+                filter = FilterOperation("profesor_id", FilterOperator.EQ, profesorId)
+            )
+    }
+
+    /**
+     * Crea una nueva sesión de clase y devuelve su ID.
+     */
+    suspend fun crearClaseInmediata(profesorId: String, materiaNombre: String): String? = withContext(Dispatchers.IO) {
         try {
-            // Aseguramos que no haya sesiones activas previas
-            SupabaseManager.client.auth.signOut()
-
-            // 1. Crear usuario en Auth
-            val authResponse = SupabaseManager.client.auth.signUpWith(Email) {
-                this.email = email
-                this.password = pass
-            }
-
-            // En versiones nuevas del SDK, el ID está en authResponse o en el usuario creado
-            val userId = authResponse?.id ?: SupabaseManager.client.auth.currentUserOrNull()?.id
-
-            if (userId == null) {
-                Log.e(TAG, "Auth exitoso pero no se pudo obtener el ID del usuario")
-                return@withContext false
-            }
-
-            Log.d(TAG, "Usuario en Auth: $userId. Creando perfil...")
-
-            // 2. Insertar perfil
-            // Nota: "estudiante" debe coincidir con el valor de tu ENUM en Postgres
-            val nuevoPerfil = PerfilDto(
-                id = userId,
-                nombre = nombre,
-                apellidos = apellidos,
-                email = email,
-                rol = "estudiante",
-                materiaImpartida = null,
-                salaAsignada = null
+            val nuevaClase = ClaseDto(
+                id = java.util.UUID.randomUUID().toString(),
+                nombre = "Clase de Hoy",
+                materia = materiaNombre,
+                profesorId = profesorId,
+                horario = "Sesión Activa",
+                dias = listOf("Hoy"),
+                totalClases = 1
             )
 
-            SupabaseManager.client.from("perfiles").insert(nuevoPerfil)
+            Log.d(TAG, "Insertando en Supabase: $nuevaClase")
 
-            Log.d(TAG, "Registro completo exitoso")
-            true
+            // Insertamos y esperamos confirmación
+            SupabaseManager.client.from("clases").insert(nuevaClase)
 
-        } catch (e: Exception) {
-            Log.e(TAG, "ERROR EN REGISTRO: ${e.localizedMessage}")
-            // Si falla el insert de perfil pero el auth se creó, aquí podrías manejarlo
-            false
+            Log.d(TAG, "¡Inserción exitosa en Postgres!")
+            nuevaClase.id
+
+        } catch (e: Throwable) {
+            Log.e(TAG, "Error CRÍTICO en Supabase: ${e.message}")
+            e.printStackTrace()
+            null
         }
     }
 
     /**
-     * LOGIN: Obtiene los datos del perfil según el email
+     * Obtiene la información de un perfil por ID (para el nombre del alumno)
      */
+    suspend fun obtenerPerfilPorId(id: String): PerfilDto? = withContext(Dispatchers.IO) {
+        try {
+            SupabaseManager.client.from("perfiles")
+                .select { filter { eq("id", id) } }
+                .decodeSingleOrNull<PerfilDto>()
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    // --- AUTENTICACIÓN Y PERFILES ---
+
     suspend fun login(email: String): Usuario? = withContext(Dispatchers.IO) {
         try {
             val result = SupabaseManager.client.from("perfiles")
-                .select {
-                    filter { eq("email", email) }
-                }
+                .select { filter { eq("email", email) } }
                 .decodeSingleOrNull<PerfilDto>()
 
             result?.let { dto ->
@@ -91,15 +114,36 @@ class AsistenciaRepository {
                         salaAsignada = dto.salaAsignada ?: "No asignada"
                     )
                 } else {
-                    Usuario.Estudiante(
-                        id = dto.id, nombre = dto.nombre,
-                        apellidos = dto.apellidos, email = dto.email
-                    )
+                    Usuario.Estudiante(dto.id, dto.nombre, dto.apellidos, dto.email)
                 }
             }
         } catch (t: Throwable) {
-            Log.e(TAG, "Error crítico en login: ${t.localizedMessage}")
             null
+        }
+    }
+
+    suspend fun signUp(email: String, pass: String, nombre: String, apellidos: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            SupabaseManager.client.auth.signOut()
+            val authResponse = SupabaseManager.client.auth.signUpWith(Email) {
+                this.email = email
+                this.password = pass
+            }
+            val userId = authResponse?.id ?: SupabaseManager.client.auth.currentUserOrNull()?.id ?: return@withContext false
+
+            val nuevoPerfil = PerfilDto(
+                id = userId,
+                nombre = nombre,
+                apellidos = apellidos,
+                email = email,
+                rol = "estudiante",
+                materiaImpartida = null,
+                salaAsignada = null
+            )
+            SupabaseManager.client.from("perfiles").insert(nuevoPerfil)
+            true
+        } catch (e: Exception) {
+            false
         }
     }
 
@@ -120,8 +164,8 @@ class AsistenciaRepository {
 
     suspend fun actualizarPassword(nuevaPassword: String): Boolean = withContext(Dispatchers.IO) {
         try {
-            // modifyUser en la versión 2.x del SDK
-            SupabaseManager.client.auth.modifyUser {
+            // updateUser en la versión 2.x del SDK
+            SupabaseManager.client.auth.updateUser {
                 password = nuevaPassword
             }
             true
@@ -198,8 +242,11 @@ class AsistenciaRepository {
         }
     }
 
+    // --- MÉTODOS DE ASISTENCIA ---
+
     suspend fun marcarAsistenciaEstudiante(estudianteId: String, claseId: String): Boolean = withContext(Dispatchers.IO) {
         try {
+            // Lógica para insertar o actualizar contador de asistencia
             val asistenciaActual = SupabaseManager.client.from("asistencia_estudiante")
                 .select {
                     filter {
@@ -209,15 +256,14 @@ class AsistenciaRepository {
                 }.decodeSingleOrNull<AsistenciaDto>()
 
             if (asistenciaActual != null) {
-                SupabaseManager.client.from("asistencia_estudiante")
-                    .update({
-                        set("asistencias_count", asistenciaActual.asistenciasCount + 1)
-                    }) {
-                        filter {
-                            eq("estudiante_id", estudianteId)
-                            eq("clase_id", claseId)
-                        }
+                SupabaseManager.client.from("asistencia_estudiante").update(
+                    { set("asistencias_count", asistenciaActual.asistenciasCount + 1) }
+                ) {
+                    filter {
+                        eq("estudiante_id", estudianteId)
+                        eq("clase_id", claseId)
                     }
+                }
             } else {
                 SupabaseManager.client.from("asistencia_estudiante").insert(
                     AsistenciaDto(estudianteId, claseId, 1)
@@ -225,7 +271,6 @@ class AsistenciaRepository {
             }
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Error asistencia: ${e.message}")
             false
         }
     }

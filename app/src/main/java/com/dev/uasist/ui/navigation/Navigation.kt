@@ -1,10 +1,13 @@
 package com.dev.uasist.ui.navigation
 
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
 import com.dev.uasist.ui.screens.*
 import com.dev.uasist.model.Usuario
 import com.dev.uasist.data.AsistenciaRepository
@@ -23,8 +26,11 @@ sealed class Rutas(val ruta: String) {
 
     // Profesor
     object ProfesorDashboard : Rutas("profesor_dashboard")
-    object GenerarQR : Rutas("generar_qr")
-    object AsistenciaLista : Rutas("asistencia_lista")
+
+    object GenerarQR : Rutas("generar_qr/{claseId}/{materia}")
+    object AsistenciaLista : Rutas("asistencia_lista/{profesorId}/{materia}")
+
+
 }
 
 @Composable
@@ -138,34 +144,57 @@ fun AppNavigation(
             usuarioActual?.let { user ->
                 ProfesorDashboardScreen(
                     usuario = user,
-                    onNavigateToQR = { navController.navigate(Rutas.GenerarQR.ruta) },
-                    onNavigateToLista = { navController.navigate(Rutas.AsistenciaLista.ruta) }
+                    onNavigateToQR = { id, mat ->
+                        val matEncoded = java.net.URLEncoder.encode(mat, "UTF-8")
+                        // Navegación por Path para máxima estabilidad
+                        navController.navigate("generar_qr/$id/$matEncoded") {
+                            launchSingleTop = true
+                        }
+                    },
+                    onNavigateToLista = { id, mat ->
+                        val matEncoded = java.net.URLEncoder.encode(mat, "UTF-8")
+                        navController.navigate("asistencia_lista/${user.id}/$matEncoded")
+                    }
                 )
             } ?: LaunchedEffect(Unit) {
-                navController.navigate(Rutas.Login.ruta) {
-                    popUpTo(0) { inclusive = true }
-                }
+                navController.navigate(Rutas.Login.ruta) { popUpTo(0) { inclusive = true } }
             }
         }
 
-        composable(Rutas.GenerarQR.ruta) {
-            usuarioActual?.let { user ->
-                GenerarQRScreen(usuario = user)
-            } ?: LaunchedEffect(Unit) {
-                navController.navigate(Rutas.Login.ruta) {
-                    popUpTo(0) { inclusive = true }
-                }
+        // PANTALLA: GENERAR QR
+        composable(
+            route = Rutas.GenerarQR.ruta,
+            arguments = listOf(
+                navArgument("claseId") { type = NavType.StringType },
+                navArgument("materia") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val claseId = backStackEntry.arguments?.getString("claseId") ?: ""
+            val materia = backStackEntry.arguments?.getString("materia") ?: "Materia"
+
+            if (usuarioActual != null && claseId.isNotEmpty()) {
+                GenerarQRScreen(
+                    usuario = usuarioActual,
+                    claseId = claseId,
+                    materiaNombre = materia
+                )
+            } else {
+                Text("Error: Datos de sesión o clase no encontrados")
             }
         }
 
-        composable(Rutas.AsistenciaLista.ruta) {
-            usuarioActual?.let { user ->
-                AsistenciaAlumnosScreen(usuario = user)
-            } ?: LaunchedEffect(Unit) {
-                navController.navigate(Rutas.Login.ruta) {
-                    popUpTo(0) { inclusive = true }
-                }
-            }
+        // PANTALLA: LISTA DE ALUMNOS
+        composable(
+            route = Rutas.AsistenciaLista.ruta,
+            arguments = listOf(
+                navArgument("profesorId") { type = NavType.StringType },
+                navArgument("materia") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val profesorId = backStackEntry.arguments?.getString("profesorId") ?: ""
+            val materia = backStackEntry.arguments?.getString("materia") ?: ""
+
+            AsistenciaAlumnosScreen(profesorId = profesorId, materiaNombre = materia)
         }
 
         composable(Rutas.SignUp.ruta) {
