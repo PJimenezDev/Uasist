@@ -33,7 +33,6 @@ fun SignUpScreen(
     val scope = rememberCoroutineScope()
     var nombre by remember { mutableStateOf("") }
     var apellidos by remember { mutableStateOf("") }
-    var telefono by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 

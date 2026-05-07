@@ -33,7 +33,7 @@ android {
 }
 
 dependencies {
-    val supabaseVersion = "2.2.3" 
+    val supabaseVersion = "2.6.1"
 
     // Supabase (Nombres correctos para versión 2.x)
     implementation("io.github.jan-tennert.supabase:postgrest-kt:$supabaseVersion")
@@ -49,8 +49,6 @@ dependencies {
 
     // Serialización
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
-
-
 
     // Dependencias necesarias para Cámara y QR
     implementation("androidx.camera:camera-camera2:1.3.0")

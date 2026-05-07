@@ -3,6 +3,7 @@ package com.dev.uasist.data.network
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.gotrue.Auth
+import io.github.jan.supabase.realtime.Realtime
 import io.ktor.client.engine.android.Android
 import kotlinx.serialization.json.Json
 import io.github.jan.supabase.serializer.KotlinXSerializer
@@ -16,6 +17,7 @@ object SupabaseManager {
         httpEngine = Android.create()
         install(Postgrest)
         install(Auth)
+        install(Realtime)
         
         defaultSerializer = KotlinXSerializer(Json {
             ignoreUnknownKeys = true
