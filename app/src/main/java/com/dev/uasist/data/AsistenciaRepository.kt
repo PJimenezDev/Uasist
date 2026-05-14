@@ -18,6 +18,7 @@ import kotlinx.coroutines.withContext
 import java.util.Calendar
 import kotlinx.coroutines.flow.Flow
 import com.dev.uasist.data.dto.AsistenciaDetalladaDto
+import kotlinx.coroutines.flow.map
 
 class AsistenciaRepository {
 
@@ -90,24 +91,51 @@ class AsistenciaRepository {
      * Esta es la función que faltaba.
      */
     @OptIn(SupabaseExperimental::class)
-    fun observarAsistentesPorClase(claseId: String): Flow<List<AsistenciaDetalladaDto>> {
+    fun observarAsistentesPorClase(claseId: String): Flow<List<EstudianteConAsistencia>> {
         return SupabaseManager.client.from("detalles_asistencia_view")
             .selectAsFlow(
                 primaryKey = AsistenciaDetalladaDto::estudianteId,
                 filter = FilterOperation("clase_id", FilterOperator.EQ, claseId)
-            )
+            ).map { lista ->
+                lista.map { dto ->
+                    val porcentajeCalculado = if (dto.totalClases > 0) {
+                        ((dto.asistenciasCount.toDouble() / dto.totalClases) * 100).toInt()
+                    } else 0
+
+                    EstudianteConAsistencia(
+                        id = dto.estudianteId,
+                        nombreCompleto = "${dto.nombre} ${dto.apellidos}",
+                        email = dto.email,
+                        porcentaje = porcentajeCalculado
+                    )
+                }
+            }
     }
 
     /**
      * ESCUCHA EN TIEMPO REAL: Historial total de un profesor.
      */
     @OptIn(SupabaseExperimental::class)
-    fun observarHistorialAsistentes(profesorId: String): Flow<List<AsistenciaDetalladaDto>> {
+    fun observarHistorialAsistentes(profesorId: String): Flow<List<EstudianteConAsistencia>> {
         return SupabaseManager.client.from("detalles_asistencia_view")
             .selectAsFlow(
                 primaryKey = AsistenciaDetalladaDto::estudianteId,
                 filter = FilterOperation("profesor_id", FilterOperator.EQ, profesorId)
-            )
+            ).map { lista ->
+                lista.map { dto ->
+                    // Si asistió a 2 de 3: (2.0 / 3.0) * 100 = 66.6 -> 66%
+                    val porcentajeCalculado = if (dto.totalClases > 0) {
+                        ((dto.asistenciasCount.toDouble() / dto.totalClases.toDouble()) * 100).toInt()
+                    } else 0
+
+                    EstudianteConAsistencia(
+                        id = dto.estudianteId,
+                        nombreCompleto = "${dto.nombre} ${dto.apellidos}",
+                        email = dto.email,
+                        porcentaje = porcentajeCalculado
+                    )
+                }
+            }
     }
 
     /**

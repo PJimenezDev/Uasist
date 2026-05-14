@@ -1,11 +1,14 @@
 package com.dev.uasist.viewmodel
 
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dev.uasist.model.AsistenciaUiState
 import com.dev.uasist.model.Usuario
 import com.dev.uasist.data.AsistenciaRepository
+import com.dev.uasist.model.EstudianteConAsistencia
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,9 +26,8 @@ class AsistenciaViewModel : ViewModel() {
     val uiState: StateFlow<AsistenciaUiState> = _uiState.asStateFlow()
 
     // Lista de alumnos que se muestra en el Dashboard/Lista
-    private val _asistentesRealtime = MutableStateFlow<List<Usuario.Estudiante>>(emptyList())
-    val asistentesRealtime: StateFlow<List<Usuario.Estudiante>> = _asistentesRealtime.asStateFlow()
-
+    private val _asistentesRealtime = MutableStateFlow<List<EstudianteConAsistencia>>(emptyList())
+    val asistentesRealtime: StateFlow<List<EstudianteConAsistencia>> = _asistentesRealtime.asStateFlow()
     // ID de la sesión activa
     private val _claseIdActiva = MutableStateFlow<String?>(null)
     val claseIdActiva = _claseIdActiva.asStateFlow()
@@ -59,6 +61,7 @@ class AsistenciaViewModel : ViewModel() {
     /**
      * Inicia una nueva sesión de clase.
      */
+    @RequiresApi(Build.VERSION_CODES.O)
     fun iniciarNuevaClase(profesorId: String, materia: String) {
         if (profesorId.isEmpty()) {
             Log.e("AsistenciaVM", "Error: El profesorId está vacío. No se puede iniciar clase.")
@@ -96,17 +99,12 @@ class AsistenciaViewModel : ViewModel() {
         monitoreoJob?.cancel() // Cancelamos monitoreos previos
         monitoreoJob = viewModelScope.launch {
             try {
+                // El repositorio ahora devuelve Flow<List<EstudianteConAsistencia>>
                 repository.observarAsistentesPorClase(claseId).collect { lista ->
-                    val estudiantes = lista.map { dto ->
-                        Usuario.Estudiante(
-                            id = dto.estudianteId,
-                            nombre = dto.nombre,
-                            apellidos = dto.apellidos,
-                            email = dto.email
-                        )
-                    }
-                    _asistentesRealtime.value = estudiantes
-                    Log.d("AsistenciaVM", "Asistentes actualizados: ${estudiantes.size} alumnos presentes.")
+                    // Simplemente asignamos la lista, ya que _asistentesRealtime
+                    // ahora debe ser del tipo List<EstudianteConAsistencia>
+                    _asistentesRealtime.value = lista
+                    Log.d("AsistenciaVM", "Asistentes actualizados: ${lista.size} alumnos con su porcentaje.")
                 }
             } catch (e: Exception) {
                 Log.e("AsistenciaVM", "Error en el monitoreo Realtime: ${e.message}")
@@ -121,9 +119,7 @@ class AsistenciaViewModel : ViewModel() {
     fun monitorearAsistencia(profesorId: String) {
         viewModelScope.launch {
             repository.observarHistorialAsistentes(profesorId).collect { lista ->
-                _asistentesRealtime.value = lista.map { dto ->
-                    Usuario.Estudiante(dto.estudianteId, dto.nombre, dto.apellidos, dto.email)
-                }
+                _asistentesRealtime.value = lista
             }
         }
     }

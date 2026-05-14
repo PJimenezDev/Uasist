@@ -17,36 +17,25 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.dev.uasist.model.EstudianteConAsistencia
 import com.dev.uasist.model.Usuario
 import com.dev.uasist.viewmodel.AsistenciaViewModel
 
 @Composable
 fun AsistenciaAlumnosScreen(
-    profesorId: String, // Cambiado: Ahora recibimos el ID del profesor para el historial total
+    profesorId: String,
     materiaNombre: String,
     viewModel: AsistenciaViewModel = viewModel()
 ) {
     var busqueda by remember { mutableStateOf("") }
-
-    // Recolectamos el historial acumulado de todas las clases de este profesor
-    // Asegúrate de tener este StateFlow en tu ViewModel que apunte a la nueva Vista SQL
     val alumnosHistorial by viewModel.asistentesRealtime.collectAsState()
 
-    // Suscripción al historial total del profesor
     LaunchedEffect(profesorId) {
         viewModel.monitorearAsistencia(profesorId)
     }
 
-    // Validación de seguridad para el ID
-    if (profesorId.isEmpty() || profesorId == "{profesorId}") {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("Error: ID de profesor no válido", color = Color.Red)
-        }
-        return
-    }
-
     val alumnosFiltrados = alumnosHistorial.filter {
-        "${it.nombre} ${it.apellidos}".contains(busqueda, ignoreCase = true)
+        it.nombreCompleto.contains(busqueda, ignoreCase = true)
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
@@ -60,21 +49,12 @@ fun AsistenciaAlumnosScreen(
             value = busqueda,
             onValueChange = { busqueda = it },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Buscar alumno en historial...") },
+            placeholder = { Text("Buscar alumno...") },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             shape = RoundedCornerShape(12.dp)
         )
 
         Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "Total alumnos registrados: ${alumnosHistorial.size}",
-            fontSize = 14.sp,
-            color = Color(0xFF3F51B5),
-            fontWeight = FontWeight.Bold
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
 
         LazyColumn(
             modifier = Modifier.weight(1f),
@@ -86,24 +66,11 @@ fun AsistenciaAlumnosScreen(
             }
         }
 
-        Button(
-            onClick = { /* Lógica de exportar CSV */ },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 80.dp, top = 8.dp)
-                .height(50.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3F51B5)),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Icon(Icons.Default.Download, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text("Exportar Reporte Total (CSV)")
-        }
     }
 }
 
 @Composable
-fun AlumnoCardRealtime(alumno: Usuario.Estudiante) {
+fun AlumnoCardRealtime(alumno: EstudianteConAsistencia) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -112,19 +79,35 @@ fun AlumnoCardRealtime(alumno: Usuario.Estudiante) {
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("${alumno.nombre} ${alumno.apellidos}", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(alumno.nombreCompleto, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Text(alumno.email, fontSize = 12.sp, color = Color.Gray)
-                // Opcional: Mostrar contador si el DTO lo trae
-                // Text("Asistencias: ${alumno.total}", fontSize = 11.sp, color = Color(0xFF3F51B5))
             }
-            Icon(
-                imageVector = Icons.Default.CheckCircle,
-                contentDescription = null,
-                tint = Color(0xFF4CAF50)
-            )
+
+            // BADGE DE PORCENTAJE
+            Surface(
+                color = when {
+                    alumno.porcentaje >= 75 -> Color(0xFFE8F5E9)
+                    alumno.porcentaje >= 50 -> Color(0xFFFFF3E0)
+                    else -> Color(0xFFFFEBEE)
+                },
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text(
+                    text = "${alumno.porcentaje}%",
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    color = when {
+                        alumno.porcentaje >= 75 -> Color(0xFF2E7D32)
+                        alumno.porcentaje >= 50 -> Color(0xFFEF6C00)
+                        else -> Color(0xFFC62828)
+                    },
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
+            }
         }
     }
 }
