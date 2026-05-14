@@ -20,8 +20,10 @@ import androidx.compose.runtime.produceState
 @Composable
 fun ClasesScreen(usuario: Usuario) {
     val repository = remember { AsistenciaRepository() }
+
+    // Cambiamos a la nueva función de resumen
     val clases by produceState(initialValue = emptyList<Clase>(), repository, usuario.id) {
-        value = repository.getTodasLasClases(usuario.id)
+        value = repository.getResumenAsistenciaPorMateria(usuario.id)
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -33,48 +35,62 @@ fun ClasesScreen(usuario: Usuario) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(bottom = 80.dp)) {
+            contentPadding = PaddingValues(bottom = 80.dp)
+        ) {
             items(clases) { clase ->
-                val porcentaje = (clase.asistencias.toFloat() / clase.totalClases.toFloat() * 100).toInt()
+                // Cálculo de porcentaje seguro
+                val porcentaje = if (clase.totalClases > 0) {
+                    (clase.asistencias.toFloat() / clase.totalClases.toFloat() * 100).toInt()
+                } else 0
+
+                // Lógica de colores del modelo original
+                val colorEstado = when {
+                    porcentaje >= 85 -> Color(0xFF4CAF50) // Verde
+                    porcentaje >= 70 -> Color(0xFFFBC02D) // Amarillo/Naranja
+                    else -> Color(0xFFF44336) // Rojo
+                }
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(2.dp)
+                    elevation = CardDefaults.cardElevation(4.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(text = clase.nombre, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                                Text(text = clase.profesor, color = Color.Gray, fontSize = 14.sp)
+                                Text(text = "Prof. ${clase.profesor}", color = Color.Gray, fontSize = 12.sp)
                             }
-                            Text(
-                                text = "$porcentaje%",
-                                color = if (porcentaje > 80) Color(0xFF4CAF50) else Color(0xFFF44336),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 20.sp
-                            )
+
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = "$porcentaje%",
+                                    color = colorEstado,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 22.sp
+                                )
+                                Text(
+                                    text = "${clase.asistencias}/${clase.totalClases}",
+                                    fontSize = 11.sp,
+                                    color = Color.Gray
+                                )
+                            }
                         }
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
-                        // Barra de progreso
+                        // Barra de progreso estilizada
                         LinearProgressIndicator(
-                            progress = { clase.asistencias.toFloat() / clase.totalClases.toFloat() },
+                            progress = { if (clase.totalClases > 0) clase.asistencias.toFloat() / clase.totalClases.toFloat() else 0f },
                             modifier = Modifier.fillMaxWidth().height(8.dp),
-                            color = if (porcentaje > 80) Color(0xFF4CAF50) else Color(0xFFF44336),
-                            trackColor = Color(0xFFE0E0E0)
-                        )
-
-                        Text(
-                            text = "${clase.asistencias}/${clase.totalClases} asistencias",
-                            modifier = Modifier.align(Alignment.End).padding(top = 4.dp),
-                            fontSize = 12.sp,
-                            color = Color.Gray
+                            color = colorEstado,
+                            trackColor = Color(0xFFEEEEEE),
+                            strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
                         )
                     }
                 }
