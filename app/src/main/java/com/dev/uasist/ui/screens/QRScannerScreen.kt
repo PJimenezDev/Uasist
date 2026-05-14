@@ -84,21 +84,22 @@ fun QRScannerScreen(
 
                                     imageAnalysis.setAnalyzer(executor) { imageProxy ->
                                         val mediaImage = imageProxy.image
-                                        if (mediaImage != null) {
+                                        if (mediaImage != null && viewModel.uiState.value is AsistenciaUiState.Escaneando) {
                                             val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
                                             scanner.process(image)
                                                 .addOnSuccessListener { barcodes ->
                                                     for (barcode in barcodes) {
                                                         barcode.rawValue?.let { value ->
-                                                            // Evitar escaneos duplicados rápidos usando el valor real del StateFlow
+                                                            // Verificamos de nuevo el estado para no llamar a la DB varias veces
                                                             if (viewModel.uiState.value is AsistenciaUiState.Escaneando) {
                                                                 viewModel.onQrDetected(usuario.id, value)
-                                                                onAsistenciaRegistrada(value)
                                                             }
                                                         }
                                                     }
                                                 }
                                                 .addOnCompleteListener { imageProxy.close() }
+                                        } else {
+                                            imageProxy.close()
                                         }
                                     }
 

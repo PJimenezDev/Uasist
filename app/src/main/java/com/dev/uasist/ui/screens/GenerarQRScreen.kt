@@ -33,6 +33,14 @@ fun GenerarQRScreen(
     var cargando by remember { mutableStateOf(true) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
 
+    val materiaLegible = remember(materiaNombre) {
+        try {
+            java.net.URLDecoder.decode(materiaNombre, "UTF-8")
+        } catch (e: Exception) {
+            materiaNombre
+        }
+    }
+
     // Efecto para generar el QR automáticamente al entrar
     LaunchedEffect(claseId) {
         if (claseId.isNotEmpty() && claseId != "error") {
@@ -79,7 +87,7 @@ fun GenerarQRScreen(
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = "Asistencia: $materiaNombre",
+            text = "Asistencia: $materiaLegible",
             fontSize = 20.sp,
             color = Color.Gray
         )

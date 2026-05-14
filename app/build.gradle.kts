@@ -42,6 +42,7 @@ dependencies {
 
     // Motor Ktor (Indispensable 2.3.12 es muy estable)
     val ktorVersion = "2.3.12"
+    implementation("io.ktor:ktor-client-okhttp:$ktorVersion") // Agregado OkHttp para soporte de WebSockets
     implementation("io.ktor:ktor-client-android:$ktorVersion")
     implementation("io.ktor:ktor-client-core:$ktorVersion")
     implementation("io.ktor:ktor-client-serialization:$ktorVersion")
