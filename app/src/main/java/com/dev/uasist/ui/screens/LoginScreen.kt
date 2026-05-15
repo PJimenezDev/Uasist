@@ -1,6 +1,7 @@
 package com.dev.uasist.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -21,6 +22,7 @@ import androidx.compose.ui.unit.sp
 
 import com.dev.uasist.data.AsistenciaRepository
 import com.dev.uasist.model.Usuario
+import com.dev.uasist.ui.theme.*
 
 @Composable
 fun LoginScreen(
@@ -33,6 +35,7 @@ fun LoginScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var error by remember { mutableStateOf("") }
+    val isDark = isSystemInDarkTheme()
 
     // Fondo con Gradiente (from-blue-500 to-purple-600)
     Box(
@@ -40,7 +43,8 @@ fun LoginScreen(
             .fillMaxSize()
             .background(
                 brush = Brush.verticalGradient(
-                    colors = listOf(Color(0xFF3B82F6), Color(0xFF9333EA))
+                    colors = if (isDark) listOf(DarkSurface, DarkBackground)
+                    else listOf(BlueLight, PurpleBrand)
                 )
             ),
         contentAlignment = Alignment.Center
@@ -50,7 +54,7 @@ fun LoginScreen(
                 .fillMaxWidth()
                 .padding(24.dp),
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
@@ -59,20 +63,21 @@ fun LoginScreen(
                 // Icono circular de cabecera
                 Surface(
                     shape = RoundedCornerShape(100),
-                    color = Color(0xFFEFF6FF),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
                     modifier = Modifier.size(64.dp)
                 ) {
                     Icon(
                         Icons.AutoMirrored.Filled.Login,
                         contentDescription = null,
-                        tint = Color(0xFF2563EB),
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(16.dp)
                     )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Bienvenido", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                Text("Inicia sesión para continuar", color = Color.Gray, fontSize = 14.sp)
+
+                Text("Bienvenido", style = MaterialTheme.typography.headlineMedium)
+                Text("Inicia sesión para continuar", style = MaterialTheme.typography.bodySmall)
 
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -105,20 +110,20 @@ fun LoginScreen(
                         Text(
                             text = "¿Olvidaste tu contraseña?",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF9333EA)
+                            color = MaterialTheme.colorScheme.secondary
                         )
                     }
                 }
 
                 if (error.isNotEmpty()) {
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF2F2)),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
                         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
                     ) {
                         Text(
                             text = error,
-                            color = Color(0xFFDC2626),
-                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.padding(12.dp)
                         )
                     }
@@ -146,7 +151,7 @@ fun LoginScreen(
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB)),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text("Iniciar Sesión", fontSize = 16.sp)

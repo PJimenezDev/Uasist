@@ -1,5 +1,9 @@
 package com.dev.uasist.ui.screens
 
+import android.os.Build
+import androidx.annotation.RequiresApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -10,13 +14,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dev.uasist.model.Usuario
+import com.dev.uasist.ui.theme.NavyDeep
 import com.dev.uasist.viewmodel.AsistenciaViewModel
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun ProfesorDashboardScreen(
     usuario: Usuario,
@@ -31,6 +38,8 @@ fun ProfesorDashboardScreen(
     val claseIdActiva by viewModel.claseIdActiva.collectAsState()
     val alumnos by viewModel.asistentesRealtime.collectAsState()
     val scope = rememberCoroutineScope()
+
+    val isDark = isSystemInDarkTheme()
 
     // 1. CARGA INICIAL: Solo busca si ya hay algo en Supabase, NO crea nada.
     LaunchedEffect(profesor?.id) {
@@ -47,19 +56,30 @@ fun ProfesorDashboardScreen(
 
     if (profesor == null) return
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Hola, ${usuario.nombre} 👋", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-        Text("Asignatura: $materia", color = Color.Gray)
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(16.dp)) {
+        Text("Hola, ${usuario.nombre} 👋", style = MaterialTheme.typography.headlineMedium)
+        Text("Asignatura: $materia", style = MaterialTheme.typography.bodySmall)
 
         Spacer(modifier = Modifier.height(20.dp))
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            EstadisticaCard("Presentes", "${alumnos.size}", Modifier.weight(1f), Color(0xFFE3F2FD))
             EstadisticaCard(
-                "Estado",
-                if (claseIdActiva != null) "Sesión Activa" else "Sin Iniciar",
-                Modifier.weight(1f),
-                if (claseIdActiva != null) Color(0xFFE8F5E9) else Color(0xFFF5F5F5)
+                titulo = "Presentes",
+                valor = "${alumnos.size}",
+                modifier = Modifier.weight(1f),
+                containerColor = if (isDark) Color(0xFF0D47A1) else Color(0xFFE3F2FD)
+            )
+
+            val estadoColor = when {
+                claseIdActiva != null -> if (isDark) Color(0xFF1B5E20) else Color(0xFFE8F5E9)
+                else -> if (isDark) Color(0xFF37474F) else Color(0xFFF5F5F5)
+            }
+
+            EstadisticaCard(
+                titulo = "Estado",
+                valor = if (claseIdActiva != null) "Sesión Activa" else "Sin Iniciar",
+                modifier = Modifier.weight(1f),
+                containerColor = estadoColor
             )
         }
 
@@ -78,8 +98,9 @@ fun ProfesorDashboardScreen(
             },
             modifier = Modifier.fillMaxWidth().height(56.dp),
             shape = RoundedCornerShape(12.dp),
-            colors = if (claseIdActiva != null) ButtonDefaults.buttonColors(containerColor = Color(0xFF2E5077))
-            else ButtonDefaults.buttonColors()
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (claseIdActiva != null) NavyDeep else MaterialTheme.colorScheme.primary
+            )
         ) {
             Icon(Icons.Default.QrCode, null)
             Spacer(Modifier.width(8.dp))
@@ -114,14 +135,31 @@ fun ProfesorDashboardScreen(
 }
 
 @Composable
-fun EstadisticaCard(titulo: String, valor: String, modifier: Modifier, color: Color) {
+fun EstadisticaCard(
+    titulo: String,
+    valor: String,
+    modifier: Modifier,
+    containerColor: Color
+) {
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = color)
+        colors = CardDefaults.cardColors(
+            containerColor = containerColor,
+            // Esto obliga a que el texto sea oscuro si el fondo es claro y viceversa
+            contentColor = if (containerColor.luminance() > 0.5f) Color.Black else Color.White
+        )
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            Text(titulo, fontSize = 12.sp, color = Color.DarkGray)
-            Text(valor, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text(
+                text = titulo,
+                style = MaterialTheme.typography.labelSmall,
+                color = LocalContentColor.current.copy(alpha = 0.7f) // Texto secundario
+            )
+            Text(
+                text = valor,
+                style = MaterialTheme.typography.titleLarge,
+                color = LocalContentColor.current // Texto principal
+            )
         }
     }
 }

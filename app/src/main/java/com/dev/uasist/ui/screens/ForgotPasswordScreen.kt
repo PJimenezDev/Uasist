@@ -1,6 +1,7 @@
 package com.dev.uasist.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dev.uasist.data.AsistenciaRepository
+import com.dev.uasist.ui.theme.*
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -27,7 +29,9 @@ fun ForgotPasswordScreen(repository: AsistenciaRepository, onBack: () -> Unit) {
     var mensaje by remember { mutableStateOf("") }
     var esError by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val gradientColors = listOf(Color(0xFFA855F7), Color(0xFFDB2777))
+
+    val isDark = isSystemInDarkTheme()
+    val gradientColors = if (isDark) listOf(DarkSurface, DarkBackground) else listOf(PurpleBrand, PinkBrand)
 
     Box(
         modifier = Modifier
@@ -39,7 +43,7 @@ fun ForgotPasswordScreen(repository: AsistenciaRepository, onBack: () -> Unit) {
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(8.dp)
         ) {
             Column(
@@ -51,19 +55,21 @@ fun ForgotPasswordScreen(repository: AsistenciaRepository, onBack: () -> Unit) {
                     modifier = Modifier
                         .size(80.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFF3E8FF)),
+                        .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.LockReset,
                         contentDescription = null,
-                        tint = Color(0xFF9333EA),
+                        tint = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.size(40.dp)
                     )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
+
                 Text("Recuperar Acceso", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+
                 Text(
                     "Ingresa tu correo para recibir las instrucciones",
                     color = Color.Gray,
@@ -102,7 +108,7 @@ fun ForgotPasswordScreen(repository: AsistenciaRepository, onBack: () -> Unit) {
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF9333EA)),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text("Enviar instrucciones", fontWeight = FontWeight.Bold)

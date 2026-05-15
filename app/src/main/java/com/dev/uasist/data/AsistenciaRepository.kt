@@ -18,6 +18,7 @@ import kotlinx.coroutines.withContext
 import java.util.Calendar
 import kotlinx.coroutines.flow.Flow
 import com.dev.uasist.data.dto.AsistenciaDetalladaDto
+import kotlinx.coroutines.flow.map
 
 class AsistenciaRepository {
 
@@ -25,132 +26,7 @@ class AsistenciaRepository {
         private const val TAG = "AsistenciaRepository"
     }
 
-
-    /**
-     * IMPORTANTE: Cambia el estado de la clase para que obtenerClaseActiva
-     * ya no la detecte como abierta.
-     */
-    suspend fun finalizarClase(claseId: String): Boolean = withContext(Dispatchers.IO) {
-        try {
-            SupabaseManager.client.from("clases").update(
-                { set("horario", "Finalizada") }
-            ) {
-                filter { eq("id", claseId) }
-            }
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "Error al finalizar clase: ${e.message}")
-            false
-        }
-    }
-
-    /**
-     * Busca una clase que no haya sido finalizada para un profesor específico.
-     * Esto permite que el Dashboard recupere el estado si la app se cierra.
-     */
-    suspend fun obtenerClaseActiva(profesorId: String): ClaseDto? = withContext(Dispatchers.IO) {
-        try {
-            SupabaseManager.client.from("clases")
-                .select {
-                    filter {
-                        eq("profesor_id", profesorId)
-                        eq("horario", "Sesión Activa")
-                    }
-                }
-                .decodeList<ClaseDto>()
-                .lastOrNull() // Retorna la más reciente creada
-        } catch (e: Throwable) {
-            Log.e(TAG, "Error al obtener clase activa: ${e.message}")
-            null
-        }
-    }
-
-    // PARA REGISTRAR: Usamos UPSERT para evitar errores por doble escaneo
-    suspend fun registrarAsistencia(claseId: String, estudianteId: String): Boolean = withContext(Dispatchers.IO) {
-        try {
-            val tabla = SupabaseManager.client.from("asistencia_estudiante")
-
-            val asistencia = AsistenciaDto(
-                estudianteId = estudianteId,
-                claseId = claseId,
-                asistenciasCount = 1
-            )
-
-            // upsert() inserta si no existe, o actualiza si ya existe (basado en PK)
-            tabla.upsert(asistencia)
-            true
-        } catch (e: Exception) {
-            Log.e("Repo", "Error crítico al registrar: ${e.message}")
-            false
-        }
-    }
-
-    /**
-     * ESCUCHA EN TIEMPO REAL: Alumnos presentes en una clase específica.
-     * Esta es la función que faltaba.
-     */
-    @OptIn(SupabaseExperimental::class)
-    fun observarAsistentesPorClase(claseId: String): Flow<List<AsistenciaDetalladaDto>> {
-        return SupabaseManager.client.from("detalles_asistencia_view")
-            .selectAsFlow(
-                primaryKey = AsistenciaDetalladaDto::estudianteId,
-                filter = FilterOperation("clase_id", FilterOperator.EQ, claseId)
-            )
-    }
-
-    /**
-     * ESCUCHA EN TIEMPO REAL: Historial total de un profesor.
-     */
-    @OptIn(SupabaseExperimental::class)
-    fun observarHistorialAsistentes(profesorId: String): Flow<List<AsistenciaDetalladaDto>> {
-        return SupabaseManager.client.from("detalles_asistencia_view")
-            .selectAsFlow(
-                primaryKey = AsistenciaDetalladaDto::estudianteId,
-                filter = FilterOperation("profesor_id", FilterOperator.EQ, profesorId)
-            )
-    }
-
-    /**
-     * Crea una nueva sesión de clase y devuelve su ID.
-     */
-    /**
-     * Mantenemos crearClaseInmediata igual, asegurando el UUID único
-     * que ya arreglamos para evitar conflictos de hardware.
-     */
-    @RequiresApi(Build.VERSION_CODES.O)
-    suspend fun crearClaseInmediata(profesorId: String, materiaNombre: String): String? = withContext(Dispatchers.IO) {
-        try {
-            val nuevaClase = ClaseDto(
-                id = java.util.UUID.randomUUID().toString(),
-                nombre = "Clase de $materiaNombre - ${java.time.LocalDate.now()}",
-                materia = materiaNombre,
-                profesorId = profesorId,
-                horario = "Sesión Activa", // Marcador de búsqueda
-                dias = listOf("Hoy"),
-                totalClases = 1
-            )
-            SupabaseManager.client.from("clases").insert(nuevaClase)
-            nuevaClase.id
-        } catch (e: Exception) {
-            Log.e(TAG, "Error al crear: ${e.message}")
-            null
-        }
-    }
-
-    /**
-     * Obtiene la información de un perfil por ID (para el nombre del alumno)
-     */
-    suspend fun obtenerPerfilPorId(id: String): PerfilDto? = withContext(Dispatchers.IO) {
-        try {
-            SupabaseManager.client.from("perfiles")
-                .select { filter { eq("id", id) } }
-                .decodeSingleOrNull<PerfilDto>()
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    // --- AUTENTICACIÓN Y PERFILES ---
+    // --- 1. AUTENTICACIÓN Y PERFILES ---
 
     suspend fun login(email: String): Usuario? = withContext(Dispatchers.IO) {
         try {
@@ -206,10 +82,8 @@ class AsistenciaRepository {
         }
     }
 
-    // --- RECUPERACIÓN DE CONTRASEÑA ---
     suspend fun enviarCorreoRecuperacion(email: String): Boolean = withContext(Dispatchers.IO) {
         try {
-            // El SDK usa resetPasswordForEmail
             SupabaseManager.client.auth.resetPasswordForEmail(
                 email = email,
                 redirectUrl = "uasist://reset-password"
@@ -223,7 +97,6 @@ class AsistenciaRepository {
 
     suspend fun actualizarPassword(nuevaPassword: String): Boolean = withContext(Dispatchers.IO) {
         try {
-            // updateUser en la versión 2.x del SDK
             SupabaseManager.client.auth.updateUser {
                 password = nuevaPassword
             }
@@ -234,7 +107,64 @@ class AsistenciaRepository {
         }
     }
 
-    // --- CLASES ---
+    /**
+     * Obtiene la información de un perfil por ID (para el nombre del alumno)
+     */
+    suspend fun obtenerPerfilPorId(id: String): PerfilDto? = withContext(Dispatchers.IO) {
+        try {
+            SupabaseManager.client.from("perfiles")
+                .select { filter { eq("id", id) } }
+                .decodeSingleOrNull<PerfilDto>()
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    // --- 2. GESTIÓN DE CLASES ---
+
+    /**
+     * Crea una nueva sesión de clase y devuelve su ID.
+     */
+    @RequiresApi(Build.VERSION_CODES.O)
+    suspend fun crearClaseInmediata(profesorId: String, materiaNombre: String): String? = withContext(Dispatchers.IO) {
+        try {
+            val nuevaClase = ClaseDto(
+                id = java.util.UUID.randomUUID().toString(),
+                nombre = "Clase de $materiaNombre - ${java.time.LocalDate.now()}",
+                materia = materiaNombre,
+                profesorId = profesorId,
+                horario = "Sesión Activa", // Marcador de búsqueda
+                dias = listOf("Hoy"),
+                totalClases = 1
+            )
+            SupabaseManager.client.from("clases").insert(nuevaClase)
+            nuevaClase.id
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al crear: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * Busca una clase que no haya sido finalizada para un profesor específico.
+     * Esto permite que el Dashboard recupere el estado si la app se cierra.
+     */
+    suspend fun obtenerClaseActiva(profesorId: String): ClaseDto? = withContext(Dispatchers.IO) {
+        try {
+            SupabaseManager.client.from("clases")
+                .select {
+                    filter {
+                        eq("profesor_id", profesorId)
+                        eq("horario", "Sesión Activa")
+                    }
+                }
+                .decodeList<ClaseDto>()
+                .lastOrNull() // Retorna la más reciente creada
+        } catch (e: Throwable) {
+            Log.e(TAG, "Error al obtener clase activa: ${e.message}")
+            null
+        }
+    }
 
     suspend fun getTodasLasClases(estudianteId: String? = null): List<Clase> = withContext(Dispatchers.IO) {
         try {
@@ -271,11 +201,102 @@ class AsistenciaRepository {
         }
     }
 
-    // --- ASISTENCIA ---
+    /**
+     * IMPORTANTE: Cambia el estado de la clase para que obtenerClaseActiva
+     * ya no la detecte como abierta.
+     */
+    suspend fun finalizarClase(claseId: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            SupabaseManager.client.from("clases").update(
+                { set("horario", "Finalizada") }
+            ) {
+                filter { eq("id", claseId) }
+            }
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al finalizar clase: ${e.message}")
+            false
+        }
+    }
+
+    // --- 3. REGISTRO DE ASISTENCIA ---
+
+    // PARA REGISTRAR: Usamos UPSERT para evitar errores por doble escaneo
+    suspend fun registrarAsistencia(claseId: String, estudianteId: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val tabla = SupabaseManager.client.from("asistencia_estudiante")
+
+            val asistencia = AsistenciaDto(
+                estudianteId = estudianteId,
+                claseId = claseId,
+                asistenciasCount = 1
+            )
+
+            // upsert() inserta si no existe, o actualiza si ya existe (basado en PK)
+            tabla.upsert(asistencia)
+            true
+        } catch (e: Exception) {
+            Log.e("Repo", "Error crítico al registrar: ${e.message}")
+            false
+        }
+    }
+
+    // --- 4. OBSERVACIÓN EN TIEMPO REAL ---
+
+    /**
+     * ESCUCHA EN TIEMPO REAL: Alumnos presentes en una clase específica.
+     */
+    @OptIn(SupabaseExperimental::class)
+    fun observarAsistentesPorClase(claseId: String): Flow<List<EstudianteConAsistencia>> {
+        return SupabaseManager.client.from("detalles_asistencia_view")
+            .selectAsFlow(
+                primaryKey = AsistenciaDetalladaDto::estudianteId,
+                filter = FilterOperation("clase_id", FilterOperator.EQ, claseId)
+            ).map { lista ->
+                lista.map { dto ->
+                    val porcentajeCalculado = if (dto.totalClases > 0) {
+                        ((dto.asistenciasCount.toDouble() / dto.totalClases) * 100).toInt()
+                    } else 0
+
+                    EstudianteConAsistencia(
+                        id = dto.estudianteId,
+                        nombreCompleto = "${dto.nombre} ${dto.apellidos}",
+                        email = dto.email,
+                        porcentaje = porcentajeCalculado
+                    )
+                }
+            }
+    }
+
+    /**
+     * ESCUCHA EN TIEMPO REAL: Historial total de un profesor.
+     */
+    @OptIn(SupabaseExperimental::class)
+    fun observarHistorialAsistentes(profesorId: String): Flow<List<EstudianteConAsistencia>> {
+        return SupabaseManager.client.from("detalles_asistencia_view")
+            .selectAsFlow(
+                primaryKey = AsistenciaDetalladaDto::estudianteId,
+                filter = FilterOperation("profesor_id", FilterOperator.EQ, profesorId)
+            ).map { lista ->
+                lista.map { dto ->
+                    val porcentajeCalculado = if (dto.totalClases > 0) {
+                        ((dto.asistenciasCount.toDouble() / dto.totalClases.toDouble()) * 100).toInt()
+                    } else 0
+
+                    EstudianteConAsistencia(
+                        id = dto.estudianteId,
+                        nombreCompleto = "${dto.nombre} ${dto.apellidos}",
+                        email = dto.email,
+                        porcentaje = porcentajeCalculado
+                    )
+                }
+            }
+    }
+
+    // --- 5. ESTADÍSTICAS Y RESÚMENES ---
 
     suspend fun getAsistenciaGeneral(estudianteId: String): Int = withContext(Dispatchers.IO) {
         try {
-            // 1. Obtenemos todas las asistencias registradas del alumno
             val asistencias = SupabaseManager.client.from("asistencia_estudiante")
                 .select {
                     filter { eq("estudiante_id", estudianteId) }
@@ -283,7 +304,6 @@ class AsistenciaRepository {
 
             if (asistencias.isEmpty()) return@withContext 0
 
-            // 2. Obtenemos todas las clases que existen en el sistema (o las de sus materias)
             val todasLasClases = SupabaseManager.client.from("clases")
                 .select()
                 .decodeList<ClaseDto>()
@@ -291,21 +311,16 @@ class AsistenciaRepository {
             var totalAsistenciasAlumno = 0
             var totalClasesDictadas = 0
 
-            // 3. Cruzamos los datos
             asistencias.forEach { asis ->
-                // Sumamos cuántas veces asistió el alumno (asistencias_count)
                 totalAsistenciasAlumno += asis.asistenciasCount
             }
 
-            // 4. Sumamos el total de clases que se han abierto (total_clases de cada registro)
-            // OJO: Aquí filtramos solo las clases que corresponden a las materias del alumno si es necesario
             todasLasClases.forEach { clase ->
                 totalClasesDictadas += clase.totalClases
             }
 
             if (totalClasesDictadas == 0) return@withContext 0
 
-            // Fórmula: (Total asistencias / Total clases posibles) * 100
             ((totalAsistenciasAlumno.toDouble() / totalClasesDictadas) * 100).toInt()
 
         } catch (e: Exception) {
@@ -316,22 +331,18 @@ class AsistenciaRepository {
 
     suspend fun getResumenAsistenciaPorMateria(estudianteId: String): List<Clase> = withContext(Dispatchers.IO) {
         try {
-            // 1. Traer perfiles de tipo profesor para tener los nombres reales
             val perfilesProfesores = SupabaseManager.client.from("perfiles")
                 .select { filter { eq("rol", "profesor") } }
                 .decodeList<PerfilDto>()
 
-            // 2. Traer clases y asistencias (como ya lo hacías)
             val todasLasClases = SupabaseManager.client.from("clases").select().decodeList<ClaseDto>()
             val asistencias = SupabaseManager.client.from("asistencia_estudiante")
                 .select { filter { eq("estudiante_id", estudianteId) } }
                 .decodeList<AsistenciaDto>()
 
-            // 3. Agrupar y mapear
             val resumen = todasLasClases.groupBy { it.materia }.map { (materia, sesiones) ->
                 val primerProfesorId = sesiones.firstOrNull()?.profesorId ?: ""
 
-                // BUSCAR EL NOMBRE REAL:
                 val perfilProfesor = perfilesProfesores.find { it.id == primerProfesorId }
                 val nombreCompleto = if (perfilProfesor != null) {
                     "${perfilProfesor.nombre} ${perfilProfesor.apellidos}"
@@ -349,7 +360,7 @@ class AsistenciaRepository {
                     id = materia,
                     nombre = materia,
                     profesorId = primerProfesorId,
-                    profesor = nombreCompleto, // <--- AQUÍ PASAMOS EL NOMBRE REAL
+                    profesor = nombreCompleto,
                     horario = sesiones.firstOrNull()?.horario ?: "Horario variable",
                     dias = sesiones.flatMap { it.dias }.distinct(),
                     asistencias = asistenciasEnMateria,
@@ -363,38 +374,7 @@ class AsistenciaRepository {
         }
     }
 
-    // --- MÉTODOS DE ASISTENCIA ---
-
-    suspend fun marcarAsistenciaEstudiante(estudianteId: String, claseId: String): Boolean = withContext(Dispatchers.IO) {
-        try {
-            // Lógica para insertar o actualizar contador de asistencia
-            val asistenciaActual = SupabaseManager.client.from("asistencia_estudiante")
-                .select {
-                    filter {
-                        eq("estudiante_id", estudianteId)
-                        eq("clase_id", claseId)
-                    }
-                }.decodeSingleOrNull<AsistenciaDto>()
-
-            if (asistenciaActual != null) {
-                SupabaseManager.client.from("asistencia_estudiante").update(
-                    { set("asistencias_count", asistenciaActual.asistenciasCount + 1) }
-                ) {
-                    filter {
-                        eq("estudiante_id", estudianteId)
-                        eq("clase_id", claseId)
-                    }
-                }
-            } else {
-                SupabaseManager.client.from("asistencia_estudiante").insert(
-                    AsistenciaDto(estudianteId, claseId, 1)
-                )
-            }
-            true
-        } catch (e: Exception) {
-            false
-        }
-    }
+    // --- 6. MÉTODOS AUXILIARES ---
 
     private fun ClaseDto.toDomain(asistenciasCount: Int = 0) = Clase(
         id = this.id,

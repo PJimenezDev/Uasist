@@ -16,6 +16,9 @@ import com.dev.uasist.model.Clase
 import com.dev.uasist.model.Usuario
 import com.dev.uasist.data.AsistenciaRepository
 import androidx.compose.runtime.produceState
+import com.dev.uasist.ui.theme.AttendError
+import com.dev.uasist.ui.theme.AttendSuccess
+import com.dev.uasist.ui.theme.AttendWarning
 
 @Composable
 fun ClasesScreen(usuario: Usuario) {
@@ -45,15 +48,15 @@ fun ClasesScreen(usuario: Usuario) {
 
                 // Lógica de colores del modelo original
                 val colorEstado = when {
-                    porcentaje >= 85 -> Color(0xFF4CAF50) // Verde
-                    porcentaje >= 70 -> Color(0xFFFBC02D) // Amarillo/Naranja
-                    else -> Color(0xFFF44336) // Rojo
+                    porcentaje >= 85 -> AttendSuccess
+                    porcentaje >= 70 -> AttendWarning
+                    else -> AttendError
                 }
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     elevation = CardDefaults.cardElevation(4.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -63,7 +66,7 @@ fun ClasesScreen(usuario: Usuario) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(text = clase.nombre, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                Text(clase.nombre, style = MaterialTheme.typography.titleLarge)
                                 Text(text = "Prof. ${clase.profesor}", color = Color.Gray, fontSize = 12.sp)
                             }
 
@@ -89,7 +92,7 @@ fun ClasesScreen(usuario: Usuario) {
                             progress = { if (clase.totalClases > 0) clase.asistencias.toFloat() / clase.totalClases.toFloat() else 0f },
                             modifier = Modifier.fillMaxWidth().height(8.dp),
                             color = colorEstado,
-                            trackColor = Color(0xFFEEEEEE),
+                            trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
                             strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
                         )
                     }
