@@ -1,12 +1,11 @@
 package com.dev.uasist.ui.screens
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,7 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dev.uasist.model.EstudianteConAsistencia
-import com.dev.uasist.model.Usuario
+import com.dev.uasist.ui.theme.*
 import com.dev.uasist.viewmodel.AsistenciaViewModel
 
 @Composable
@@ -29,6 +28,7 @@ fun AsistenciaAlumnosScreen(
 ) {
     var busqueda by remember { mutableStateOf("") }
     val alumnosHistorial by viewModel.asistentesRealtime.collectAsState()
+
 
     LaunchedEffect(profesorId) {
         viewModel.monitorearAsistencia(profesorId)
@@ -69,11 +69,19 @@ fun AsistenciaAlumnosScreen(
     }
 }
 
+
 @Composable
 fun AlumnoCardRealtime(alumno: EstudianteConAsistencia) {
+    val isDark = isSystemInDarkTheme()
+    val (contentColor, backgroundColor) = when {
+        alumno.porcentaje >= 75 -> AttendSuccess to BadgeGreenBg
+        alumno.porcentaje >= 50 -> AttendWarning to BadgeOrangeBg
+        else -> AttendError to BadgeRedBg
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(2.dp),
         shape = RoundedCornerShape(12.dp)
     ) {
@@ -83,27 +91,20 @@ fun AlumnoCardRealtime(alumno: EstudianteConAsistencia) {
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(alumno.nombreCompleto, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text(alumno.email, fontSize = 12.sp, color = Color.Gray)
+                Text(alumno.nombreCompleto, style = MaterialTheme.typography.titleLarge)
+                Text(alumno.email, style = MaterialTheme.typography.bodySmall)
             }
 
             // BADGE DE PORCENTAJE
             Surface(
-                color = when {
-                    alumno.porcentaje >= 75 -> Color(0xFFE8F5E9)
-                    alumno.porcentaje >= 50 -> Color(0xFFFFF3E0)
-                    else -> Color(0xFFFFEBEE)
-                },
+                color = if (isDark) MaterialTheme.colorScheme.surfaceVariant
+                else if (alumno.porcentaje >= 75) BadgeGreenBg else BadgeRedBg,
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Text(
                     text = "${alumno.porcentaje}%",
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    color = when {
-                        alumno.porcentaje >= 75 -> Color(0xFF2E7D32)
-                        alumno.porcentaje >= 50 -> Color(0xFFEF6C00)
-                        else -> Color(0xFFC62828)
-                    },
+                    color = contentColor,
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp
                 )

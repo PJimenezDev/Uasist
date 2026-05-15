@@ -2,6 +2,7 @@ package com.dev.uasist.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -22,6 +23,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dev.uasist.data.AsistenciaRepository
+import com.dev.uasist.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,8 +40,13 @@ fun SignUpScreen(
 
     var error by remember { mutableStateOf("") }
 
-    // Colores del gradiente
-    val gradientColors = listOf(Color(0xFFA855F7), Color(0xFFDB2777))
+    // Gradiente dinámico: Se suaviza en modo oscuro
+        val isDark = isSystemInDarkTheme()
+        val gradientColors = if (isDark) {
+            listOf(DarkSurface, DarkBackground)
+        } else {
+            listOf(LightSurface, LightBackground)
+        }
 
     Box(
         modifier = Modifier
@@ -53,7 +60,7 @@ fun SignUpScreen(
                 .fillMaxWidth()
                 .padding(vertical = 24.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
             Column(
@@ -67,21 +74,21 @@ fun SignUpScreen(
                     modifier = Modifier
                         .size(64.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFF3E8FF)), // Purple 100
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)), // Purple 100
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.PersonAdd,
                         contentDescription = "Crear Cuenta",
-                        tint = Color(0xFF9333EA), // Purple 600
+                        tint = MaterialTheme.colorScheme.primary, // Purple 600
                         modifier = Modifier.size(32.dp)
                     )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
                 // Títulos ajustados para reflejar que es para alumnos
-                Text("Registro de Alumno", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                Text("Crea tu cuenta para registrar asistencia", color = Color.Gray, modifier = Modifier.padding(bottom = 24.dp))
+                Text("Registro de Alumno", style = MaterialTheme.typography.headlineMedium)
+                Text("Crea tu cuenta", style = MaterialTheme.typography.bodyLarge)
 
                 if (error.isNotEmpty()) {
                     Text(
@@ -158,7 +165,7 @@ fun SignUpScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF9333EA)),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text("Crear Cuenta", fontSize = 16.sp)

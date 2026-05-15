@@ -40,31 +40,35 @@ fun DashboardScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF9FAFB)) // bg-gray-50
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(scrollState)
             .padding(16.dp)
     ) {
-        Text("Hola, ${usuario.nombre} 👋", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-        Text("Aquí está tu resumen de hoy", color = Color.Gray, fontSize = 14.sp)
+
+        Text("Hola, ${usuario.nombre} 👋", style = MaterialTheme.typography.headlineMedium)
+        Text("Aquí está tu resumen de hoy", style = MaterialTheme.typography.bodySmall)
 
         Spacer(modifier = Modifier.height(24.dp))
 
         // Tarjeta de Asistencia General (Gradiente en React, aquí usamos un color primario)
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF3B82F6)), // bg-blue-500
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary),
             shape = RoundedCornerShape(16.dp)
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
-                Text("Asistencia General", color = Color.White, fontSize = 16.sp)
+                Text("Asistencia General", color = MaterialTheme.colorScheme.onPrimary, fontSize = 16.sp)
+
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("$asistenciaGeneral%", color = Color.White, fontSize = 36.sp, fontWeight = FontWeight.Bold)
+
+                Text("$asistenciaGeneral%", color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.headlineMedium, fontSize = 36.sp)
+
                 Spacer(modifier = Modifier.height(8.dp))
                 LinearProgressIndicator(
                     progress = { asistenciaGeneral / 100f },
                     modifier = Modifier.fillMaxWidth(),
-                    color = Color.White,
-                    trackColor = Color.White.copy(alpha = 0.3f)
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f)
                 )
             }
         }
@@ -98,7 +102,7 @@ fun DashboardScreen(
                         .padding(vertical = 4.dp)
                         .clickable { onNavigateToClases() }, // Navega al hacer clic
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     elevation = CardDefaults.cardElevation(2.dp)
                 ) {
                     Row(
