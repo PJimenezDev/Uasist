@@ -1,6 +1,7 @@
 package com.dev.uasist.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,6 +20,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dev.uasist.data.AsistenciaRepository
+import com.dev.uasist.ui.theme.*
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -27,21 +29,21 @@ fun ResetPasswordScreen(repository: AsistenciaRepository, onFinish: () -> Unit) 
     var newPass by remember { mutableStateOf("") }
     var confirmPass by remember { mutableStateOf("") }
     var error by remember { mutableStateOf("") }
-
     val scope = rememberCoroutineScope()
-    val gradientColors = listOf(Color(0xFFA855F7), Color(0xFFDB2777))
+    val isDark = isSystemInDarkTheme()
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.linearGradient(gradientColors))
+            .background(Brush.linearGradient(if (isDark) listOf(DarkSurface, DarkBackground)
+            else listOf(LightSurface, LightBackground)))
             .padding(20.dp),
         contentAlignment = Alignment.Center
     ) {
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(8.dp)
         ) {
             Column(
@@ -52,20 +54,22 @@ fun ResetPasswordScreen(repository: AsistenciaRepository, onFinish: () -> Unit) 
                     modifier = Modifier
                         .size(80.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFE0F2FE)), // Blue 100
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)), // Blue 100
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Security,
                         contentDescription = null,
-                        tint = Color(0xFF0284C7),
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(40.dp)
                     )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Nueva Contraseña", fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                Text("Escribe tu nueva clave de acceso", color = Color.Gray)
+
+                Text("Nueva Contraseña", style = MaterialTheme.typography.headlineMedium)
+
+                Text("Escribe tu nueva clave de acceso", style = MaterialTheme.typography.bodySmall)
 
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -113,7 +117,7 @@ fun ResetPasswordScreen(repository: AsistenciaRepository, onFinish: () -> Unit) 
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text("Actualizar contraseña", fontWeight = FontWeight.Bold)

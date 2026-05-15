@@ -1,6 +1,7 @@
 package com.dev.uasist.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -19,10 +20,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dev.uasist.model.Usuario
+import com.dev.uasist.ui.theme.BlueBrand
+import com.dev.uasist.ui.theme.BlueLight
+import com.dev.uasist.ui.theme.PinkBrand
+import com.dev.uasist.ui.theme.PurpleBrand
+
 @Composable
 fun ProfileScreen(usuario: Usuario, onLogout: () -> Unit) {
     var isEditing by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
+    val isDark = isSystemInDarkTheme()
 
     // Estados inicializados con los datos reales del usuario pasado por parámetro
     var nombre by remember { mutableStateOf(usuario.nombre) }
@@ -32,22 +39,24 @@ fun ProfileScreen(usuario: Usuario, onLogout: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF9FAFB))
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(scrollState)
             .padding(16.dp)
     ) {
-        Text("Mi Perfil", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-        // Subtítulo dinámico según el rol
-        val subtitulo = if (usuario is Usuario.Profesor) "Panel de Docente" else "Información de Estudiante"
-        Text(subtitulo, color = Color.Gray, fontSize = 14.sp)
+        Text("Mi Perfil", style = MaterialTheme.typography.bodySmall)
 
+        Text(
+            if (usuario is Usuario.Profesor) "Docente" else "Estudiante",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         Spacer(modifier = Modifier.height(24.dp))
 
         // Tarjeta de Usuario con color según el Rol
         val gradienteColor = if (usuario is Usuario.Profesor)
-            listOf(Color(0xFF2563EB), Color(0xFF3B82F6)) // Azul para profes
+            listOf(BlueBrand, BlueLight)
         else
-            listOf(Color(0xFFA855F7), Color(0xFFEC4899)) // Morado/Rosa para alumnos
+            listOf(PurpleBrand, PinkBrand)
 
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -68,11 +77,14 @@ fun ProfileScreen(usuario: Usuario, onLogout: () -> Unit) {
                         color = Color.White.copy(alpha = 0.2f)
                     ) {
                         val iconoPrincipal = if (usuario is Usuario.Profesor) Icons.Default.School else Icons.Default.Person
-                        Icon(iconoPrincipal, contentDescription = null, tint = Color.White, modifier = Modifier.padding(16.dp))
+                        Icon(iconoPrincipal, null, tint = Color.White, modifier = Modifier.padding(16.dp))
                     }
+
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text("$nombre $apellidos", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                    Text(email, color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
+
+                    Text("$nombre $apellidos", color = Color.White, style = MaterialTheme.typography.titleLarge)
+
+                    Text(email, color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
@@ -109,7 +121,6 @@ fun ProfileScreen(usuario: Usuario, onLogout: () -> Unit) {
             OutlinedButton(
                 onClick = { isEditing = true },
                 modifier = Modifier.fillMaxWidth().height(50.dp),
-                colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White, contentColor = Color.Black),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -138,15 +149,16 @@ fun ProfileScreen(usuario: Usuario, onLogout: () -> Unit) {
 
         Spacer(modifier = Modifier.height(12.dp))
 
+        // Cerrar sesión (Rojo estándar de error)
         Button(
             onClick = onLogout,
             modifier = Modifier.fillMaxWidth().height(50.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
             shape = RoundedCornerShape(12.dp)
         ) {
             Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Cerrar Sesión", color = Color.White)
+            Text("Cerrar Sesión", color = MaterialTheme.colorScheme.onError)
         }
 
         Spacer(modifier = Modifier.height(80.dp))
@@ -155,7 +167,12 @@ fun ProfileScreen(usuario: Usuario, onLogout: () -> Unit) {
 @Composable
 fun ProfileField(label: String, value: String, isEditing: Boolean, onValueChange: (String) -> Unit, icon: androidx.compose.ui.graphics.vector.ImageVector) {
     Column(modifier = Modifier.padding(bottom = 16.dp)) {
-        Text(label, fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(start = 4.dp, bottom = 4.dp))
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+        )
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
@@ -163,9 +180,9 @@ fun ProfileField(label: String, value: String, isEditing: Boolean, onValueChange
             leadingIcon = { Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp)) },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            colors = TextFieldDefaults.colors(
-                disabledContainerColor = Color(0xFFF3F4F6),
-                disabledTextColor = Color.Black
+            colors = OutlinedTextFieldDefaults.colors(
+                disabledBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                disabledTextColor = MaterialTheme.colorScheme.onSurface
             )
         )
     }

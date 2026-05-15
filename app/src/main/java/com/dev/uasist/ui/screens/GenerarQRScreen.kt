@@ -2,6 +2,8 @@ package com.dev.uasist.ui.screens
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -32,6 +34,8 @@ fun GenerarQRScreen(
     var segundosRestantes by remember { mutableIntStateOf(300) }
     var cargando by remember { mutableStateOf(true) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
+
+    val isDark = isSystemInDarkTheme()
 
     val materiaLegible = remember(materiaNombre) {
         try {
@@ -82,24 +86,22 @@ fun GenerarQRScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Text(
             text = "Asistencia: $materiaLegible",
-            fontSize = 20.sp,
-            color = Color.Gray
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
         when {
             cargando -> {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(48.dp),
-                    color = MaterialTheme.colorScheme.primary
-                )
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.height(16.dp))
                 Text("Generando código seguro...", fontSize = 16.sp)
             }
@@ -118,9 +120,9 @@ fun GenerarQRScreen(
 
                 Text(
                     text = "Código QR Activo",
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.headlineMedium,
                     color = Color(0xFF4CAF50),
-                    fontSize = 24.sp
+                    fontWeight = FontWeight.Bold
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -147,9 +149,9 @@ fun GenerarQRScreen(
 
                 Text(
                     text = "Válido por: $tiempoTexto",
-                    color = if (segundosRestantes < 60) Color.Red else Color.DarkGray,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp
+                    color = if (segundosRestantes < 60) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
@@ -158,11 +160,11 @@ fun GenerarQRScreen(
                     onClick = {
                         segundosRestantes = 0
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                     modifier = Modifier.fillMaxWidth().height(50.dp),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Finalizar Registro QR", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("Finalizar Registro QR", color = MaterialTheme.colorScheme.onError, fontWeight = FontWeight.Bold)
                 }
             }
 

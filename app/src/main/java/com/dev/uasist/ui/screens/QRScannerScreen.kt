@@ -7,8 +7,10 @@ import androidx.annotation.OptIn
 import androidx.camera.core.*
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -19,10 +21,14 @@ import com.dev.uasist.viewmodel.ScannerViewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import com.dev.uasist.ui.theme.AttendError
+import com.dev.uasist.ui.theme.AttendSuccess
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
@@ -120,61 +126,66 @@ fun QRScannerScreen(
                             modifier = Modifier.fillMaxSize()
                         )
 
-                        // Overlay informativo
-                        Text(
-                            "Apunta al código QR del profesor",
+                        // Overlay adaptativo
+                        Surface(
                             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 48.dp),
-                            color = Color.White,
-                            style = MaterialTheme.typography.bodyLarge
-                        )
+                            color = Color.Black.copy(alpha = 0.6f),
+                            shape = CircleShape
+                        ) {
+                            Text(
+                                "Apunta al código QR del profesor",
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+                                color = Color.White
+                            )
+                        }
                     }
                 }
                 is AsistenciaUiState.Exito -> {
-                    // Pantalla de éxito tras escanear
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            Icons.Default.CheckCircle,
-                            contentDescription = null,
-                            tint = Color(0xFF4CAF50),
-                            modifier = Modifier.size(100.dp)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text("¡Asistencia Registrada!", style = MaterialTheme.typography.headlineMedium)
-                        Text(state.mensajeExito, color = Color.Gray)
-
-                        Button(
-                            onClick = { viewModel.resetScanner() },
-                            modifier = Modifier.padding(top = 24.dp)
-                        ) {
-                            Text("Escanear de nuevo")
-                        }
-                    }
+                    StatusView(
+                        icon = Icons.Default.CheckCircle,
+                        title = "¡Asistencia Registrada!",
+                        message = state.mensajeExito,
+                        iconColor = AttendSuccess,
+                        buttonText = "Escanear de nuevo",
+                        onAction = { viewModel.resetScanner() }
+                    )
                 }
                 is AsistenciaUiState.Error -> {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text("Error", style = MaterialTheme.typography.headlineMedium, color = Color.Red)
-                        Text(state.mensaje, color = Color.Gray)
-                        Button(
-                            onClick = { viewModel.resetScanner() },
-                            modifier = Modifier.padding(top = 24.dp)
-                        ) {
-                            Text("Reintentar")
-                        }
-                    }
+                    StatusView(
+                        icon = Icons.Default.Error,
+                        title = "Error",
+                        message = state.mensaje,
+                        iconColor = AttendError,
+                        buttonText = "Reintentar",
+                        onAction = { viewModel.resetScanner() }
+                    )
                 }
             }
         } else {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("Se requiere permiso de cámara para escanear.")
             }
+        }
+    }
+}
+
+@Composable
+fun StatusView(icon: ImageVector, title: String, message: String, iconColor: Color, buttonText: String, onAction: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(icon, null, tint = iconColor, modifier = Modifier.size(100.dp))
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(title, style = MaterialTheme.typography.headlineMedium)
+        Text(message, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
+
+        Button(
+            onClick = onAction,
+            modifier = Modifier.padding(top = 32.dp).fillMaxWidth().height(50.dp)
+        ) {
+            Text(buttonText)
         }
     }
 }

@@ -13,24 +13,24 @@ import com.dev.uasist.model.Usuario
 import com.dev.uasist.data.AsistenciaRepository
 
 sealed class Rutas(val ruta: String) {
+    // 1. Autenticación
     object Login : Rutas("login")
     object SignUp : Rutas("signup")
-    object Profile : Rutas("profile")
-    object ResetPassword : Rutas("nueva_clave")
     object ForgotPassword : Rutas("recuperar_clave")
+    object ResetPassword : Rutas("nueva_clave")
+    
+    // 2. Común
+    object Profile : Rutas("profile")
 
-    // Alumno
+    // 3. Alumno
     object AlumnoDashboard : Rutas("alumno_dashboard")
     object Clases : Rutas("clases")
     object ScannerQR : Rutas("scanner_qr")
 
-    // Profesor
+    // 4. Profesor
     object ProfesorDashboard : Rutas("profesor_dashboard")
-
     object GenerarQR : Rutas("generar_qr/{claseId}/{materia}")
     object AsistenciaLista : Rutas("asistencia_lista/{profesorId}/{materia}")
-
-
 }
 
 @Composable
@@ -46,7 +46,8 @@ fun AppNavigation(
         startDestination = Rutas.Login.ruta,
         modifier = modifier
     ) {
-        // --- PANTALLA DE LOGIN ---
+        // --- 1. FLUJO DE AUTENTICACIÓN ---
+
         composable(Rutas.Login.ruta) {
             LoginScreen(
                 onLoginSuccess = { usuario ->
@@ -74,6 +75,19 @@ fun AppNavigation(
             )
         }
 
+        composable(Rutas.SignUp.ruta) {
+            SignUpScreen(
+                onNavigateToLogin = {
+                    navController.popBackStack()
+                },
+                onSignUpSuccess = {
+                    navController.navigate(Rutas.Login.ruta) {
+                        popUpTo(Rutas.SignUp.ruta) { inclusive = true }
+                    }
+                }
+            )
+        }
+
         composable(Rutas.ForgotPassword.ruta) {
             ForgotPasswordScreen(
                 repository = AsistenciaRepository(),
@@ -81,7 +95,19 @@ fun AppNavigation(
             )
         }
 
-        // --- PANTALLAS DEL ALUMNO ---
+        composable(Rutas.ResetPassword.ruta) {
+            ResetPasswordScreen(
+                repository = AsistenciaRepository(),
+                onFinish = {
+                    navController.navigate(Rutas.Login.ruta) {
+                        popUpTo(Rutas.ResetPassword.ruta) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // --- 2. PANTALLAS DEL ALUMNO ---
+
         composable(Rutas.AlumnoDashboard.ruta) {
             usuarioActual?.let { user ->
                 DashboardScreen(
@@ -95,18 +121,9 @@ fun AppNavigation(
             }
         }
 
-        composable(Rutas.Profile.ruta) {
+        composable(Rutas.Clases.ruta) {
             usuarioActual?.let { user ->
-                ProfileScreen(
-                    usuario = user,
-                    onLogout = {
-                        onUsuarioChange(null)
-                        onRoleChange("alumno")
-                        navController.navigate(Rutas.Login.ruta) {
-                            popUpTo(0) { inclusive = true }
-                        }
-                    }
-                )
+                ClasesScreen(usuario = user)
             } ?: LaunchedEffect(Unit) {
                 navController.navigate(Rutas.Login.ruta) {
                     popUpTo(0) { inclusive = true }
@@ -129,24 +146,14 @@ fun AppNavigation(
             }
         }
 
-        composable(Rutas.Clases.ruta) {
-            usuarioActual?.let { user ->
-                ClasesScreen(usuario = user)
-            } ?: LaunchedEffect(Unit) {
-                navController.navigate(Rutas.Login.ruta) {
-                    popUpTo(0) { inclusive = true }
-                }
-            }
-        }
+        // --- 3. PANTALLAS DEL PROFESOR ---
 
-        // --- PANTALLAS DEL PROFESOR ---
         composable(Rutas.ProfesorDashboard.ruta) {
             usuarioActual?.let { user ->
                 ProfesorDashboardScreen(
                     usuario = user,
                     onNavigateToQR = { id, mat ->
                         val matEncoded = java.net.URLEncoder.encode(mat, "UTF-8")
-                        // Navegación por Path para máxima estabilidad
                         navController.navigate("generar_qr/$id/$matEncoded") {
                             launchSingleTop = true
                         }
@@ -161,7 +168,6 @@ fun AppNavigation(
             }
         }
 
-        // PANTALLA: GENERAR QR
         composable(
             route = Rutas.GenerarQR.ruta,
             arguments = listOf(
@@ -183,7 +189,6 @@ fun AppNavigation(
             }
         }
 
-        // PANTALLA: LISTA DE ALUMNOS
         composable(
             route = Rutas.AsistenciaLista.ruta,
             arguments = listOf(
@@ -197,34 +202,25 @@ fun AppNavigation(
             AsistenciaAlumnosScreen(profesorId = profesorId, materiaNombre = materia)
         }
 
-        composable(Rutas.SignUp.ruta) {
-            SignUpScreen(
-                onNavigateToLogin = {
-                    navController.popBackStack()
-                },
-                onSignUpSuccess = {
-                    // Después del registro, intentamos obtener el perfil para setear el usuarioActual
-                    // O simplemente redirigimos al login para que el usuario inicie sesión.
-                    // Para una mejor UX, intentaremos loguear automáticamente o pedir login.
-                    // Por ahora, redirigimos al Login con un mensaje de éxito sería ideal, 
-                    // pero aquí lo mandamos al dashboard si logramos reconstruir el objeto.
-                    // Como simplificación para este flujo, lo mandaremos al Login.
-                    navController.navigate(Rutas.Login.ruta) {
-                        popUpTo(Rutas.SignUp.ruta) { inclusive = true }
-                    }
-                }
-            )
-        }
+        // --- 4. PANTALLAS COMUNES ---
 
-        composable(Rutas.ResetPassword.ruta) {
-            ResetPasswordScreen(
-                repository = AsistenciaRepository(),
-                onFinish = {
-                    navController.navigate(Rutas.Login.ruta) {
-                        popUpTo(Rutas.ResetPassword.ruta) { inclusive = true }
+        composable(Rutas.Profile.ruta) {
+            usuarioActual?.let { user ->
+                ProfileScreen(
+                    usuario = user,
+                    onLogout = {
+                        onUsuarioChange(null)
+                        onRoleChange("alumno")
+                        navController.navigate(Rutas.Login.ruta) {
+                            popUpTo(0) { inclusive = true }
+                        }
                     }
+                )
+            } ?: LaunchedEffect(Unit) {
+                navController.navigate(Rutas.Login.ruta) {
+                    popUpTo(0) { inclusive = true }
                 }
-            )
+            }
         }
     }
 }

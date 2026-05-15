@@ -21,32 +21,36 @@ class AsistenciaViewModel : ViewModel() {
 
     private val repository = AsistenciaRepository()
 
-    // Estado de la UI para el Alumno (Escáner)
+    // --- 1. ESTADOS DE LA UI ---
+
+    // Estado para el Escáner del Alumno
     private val _uiState = MutableStateFlow<AsistenciaUiState>(AsistenciaUiState.Escaneando)
     val uiState: StateFlow<AsistenciaUiState> = _uiState.asStateFlow()
 
-    // Lista de alumnos que se muestra en el Dashboard/Lista
-    private val _asistentesRealtime = MutableStateFlow<List<EstudianteConAsistencia>>(emptyList())
-    val asistentesRealtime: StateFlow<List<EstudianteConAsistencia>> = _asistentesRealtime.asStateFlow()
-    // ID de la sesión activa
+    // ID de la sesión activa del profesor
     private val _claseIdActiva = MutableStateFlow<String?>(null)
     val claseIdActiva = _claseIdActiva.asStateFlow()
-    private var monitoreoJob: Job? = null
 
-    // Evento de navegación para ir al QR solo al crear la clase
+    // Lista de alumnos presentes (Realtime)
+    private val _asistentesRealtime = MutableStateFlow<List<EstudianteConAsistencia>>(emptyList())
+    val asistentesRealtime: StateFlow<List<EstudianteConAsistencia>> = _asistentesRealtime.asStateFlow()
+
+    // Evento para navegar al QR (SharedFlow para disparar eventos una sola vez)
     private val _navegarAQR = MutableSharedFlow<String>()
     val navegarAQR = _navegarAQR.asSharedFlow()
 
+    private var monitoreoJob: Job? = null
+
+    // --- 2. FLUJO DEL PROFESOR (GESTIÓN DE SESIÓN) ---
+
     /**
-     * IMPORTANTE: Llama a esto en el Dashboard del profesor para recuperar la sesión
-     * si el profesor salió de la app o cambió de pantalla.
+     * Recupera una sesión activa si el profesor salió de la app.
      */
     fun cargarClaseActiva(profesorId: String) {
-        if (_claseIdActiva.value != null) return // Ya está cargada
+        if (_claseIdActiva.value != null) return
 
         viewModelScope.launch {
             try {
-                // Debes implementar 'obtenerClaseActiva' en tu repositorio
                 val claseExistente = repository.obtenerClaseActiva(profesorId)
                 if (claseExistente != null) {
                     _claseIdActiva.value = claseExistente.id
@@ -59,62 +63,73 @@ class AsistenciaViewModel : ViewModel() {
     }
 
     /**
-     * Inicia una nueva sesión de clase.
+     * Inicia una nueva clase y emite el evento de navegación al QR.
      */
     @RequiresApi(Build.VERSION_CODES.O)
     fun iniciarNuevaClase(profesorId: String, materia: String) {
         if (profesorId.isEmpty()) {
-            Log.e("AsistenciaVM", "Error: El profesorId está vacío. No se puede iniciar clase.")
+            Log.e("AsistenciaVM", "Error: profesorId vacío")
             return
         }
 
         viewModelScope.launch {
             try {
-                Log.d("AsistenciaVM", "Intentando crear clase para: $profesorId en $materia")
-
                 val idGenerado = repository.crearClaseInmediata(profesorId, materia)
-
                 if (idGenerado != null) {
-                    Log.d("AsistenciaVM", "¡Clase creada con éxito! ID: $idGenerado")
-                    
-                    // Al iniciar clase, empezamos a escuchar solo a los que entren a ESTA clase
-                    // Lo hacemos ANTES de actualizar el ID activa para que el monitoreo esté listo
                     escucharAsistenciaClaseActual(idGenerado)
-                    
                     _claseIdActiva.value = idGenerado
-                    _navegarAQR.emit(idGenerado) // Notificamos que debe navegar
-                } else {
-                    Log.e("AsistenciaVM", "El repositorio devolvió un ID nulo. Revisa la conexión o la tabla 'clases'.")
+                    _navegarAQR.emit(idGenerado)
                 }
             } catch (e: Exception) {
-                Log.e("AsistenciaVM", "Error fatal al iniciar clase: ${e.message}")
+                Log.e("AsistenciaVM", "Error al iniciar clase: ${e.message}")
             }
         }
     }
 
     /**
-     * Escucha en tiempo real solo a los alumnos que se registran en la clase que acaba de abrirse.
+     * Escucha en tiempo real a los alumnos de la clase actual.
      */
     private fun escucharAsistenciaClaseActual(claseId: String) {
-        monitoreoJob?.cancel() // Cancelamos monitoreos previos
+        monitoreoJob?.cancel()
         monitoreoJob = viewModelScope.launch {
             try {
-                // El repositorio ahora devuelve Flow<List<EstudianteConAsistencia>>
                 repository.observarAsistentesPorClase(claseId).collect { lista ->
-                    // Simplemente asignamos la lista, ya que _asistentesRealtime
-                    // ahora debe ser del tipo List<EstudianteConAsistencia>
                     _asistentesRealtime.value = lista
-                    Log.d("AsistenciaVM", "Asistentes actualizados: ${lista.size} alumnos con su porcentaje.")
+                    Log.d("AsistenciaVM", "Actualización Realtime: ${lista.size} alumnos")
                 }
             } catch (e: Exception) {
-                Log.e("AsistenciaVM", "Error en el monitoreo Realtime: ${e.message}")
+                Log.e("AsistenciaVM", "Error en monitoreo Realtime: ${e.message}")
             }
         }
     }
 
     /**
-     * Monitorea el HISTORIAL TOTAL de un profesor (todas sus clases pasadas).
-     * Se usa para la pantalla de AsistenciaAlumnosScreen.
+     * Finaliza la sesión actual y limpia los estados locales.
+     */
+    fun finalizarSesion() {
+        val idClase = _claseIdActiva.value
+
+        if (idClase != null) {
+            viewModelScope.launch {
+                try {
+                    val exito = repository.finalizarClase(idClase)
+                    if (exito) {
+                        _claseIdActiva.value = null
+                        monitoreoJob?.cancel()
+                        _asistentesRealtime.value = emptyList()
+                    }
+                } catch (e: Exception) {
+                    Log.e("AsistenciaVM", "Error al cerrar sesión: ${e.message}")
+                }
+            }
+        } else {
+            _claseIdActiva.value = null
+            _asistentesRealtime.value = emptyList()
+        }
+    }
+
+    /**
+     * Monitorea el historial completo para la pantalla de lista de alumnos.
      */
     fun monitorearAsistencia(profesorId: String) {
         viewModelScope.launch {
@@ -123,8 +138,11 @@ class AsistenciaViewModel : ViewModel() {
             }
         }
     }
+
+    // --- 3. FLUJO DEL ALUMNO ---
+
     /**
-     * Maneja la detección de QR del lado del alumno
+     * Maneja el código QR detectado por la cámara.
      */
     fun onQrDetectado(codigoQr: String) {
         if (codigoQr.isNotEmpty()) {
@@ -133,41 +151,4 @@ class AsistenciaViewModel : ViewModel() {
             _uiState.value = AsistenciaUiState.Error("Código QR no válido")
         }
     }
-
-    fun finalizarSesion() {
-        val idAByPass = _claseIdActiva.value // Obtenemos el ID antes de limpiar
-
-        if (idAByPass != null) {
-            viewModelScope.launch {
-                try {
-                    Log.d("AsistenciaVM", "Finalizando sesión en BD: $idAByPass")
-
-                    // 1. LLAMADA AL REPOSITORIO (La función que me pasaste)
-                    val exito = repository.finalizarClase(idAByPass)
-
-                    if (exito) {
-                        // 2. Solo si se actualizó en la nube, limpiamos el estado local
-                        _claseIdActiva.value = null
-                        monitoreoJob?.cancel()
-                        _asistentesRealtime.value = emptyList()
-                        Log.d("AsistenciaVM", "Sesión cerrada exitosamente.")
-                    }
-                } catch (e: Exception) {
-                    Log.e("AsistenciaVM", "Error al cerrar sesión: ${e.message}")
-                }
-            }
-        } else {
-            // Caso borde: Si por alguna razón el ID local era null, nos aseguramos de limpiar
-            _claseIdActiva.value = null
-            _asistentesRealtime.value = emptyList()
-        }
-    }
-
-
-    fun reiniciarEscaner() {
-        _uiState.value = AsistenciaUiState.Escaneando
-    }
-
-    // Aquí podrías agregar más funciones relacionadas con la asistencia,
-    // como validar el código QR, manejar errores específicos, etc.
 }
